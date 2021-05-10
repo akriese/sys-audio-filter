@@ -5,6 +5,7 @@ A tool to manipulate your system audio.
 
 ### TODO:
 
+- [ ] Locate fitting crate to access sound
 - [ ] Send simple audio (e.g. sine wave) to output
 - [ ] Receive audio and send it back to output
 - [ ] Access system audio on multiple platforms
