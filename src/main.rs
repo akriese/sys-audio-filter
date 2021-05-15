@@ -16,10 +16,11 @@ fn play_sine(frequency: u32, seconds: f32) {
 
 fn play_mp3(filename: &String) {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let sink = Sink::try_new(&stream_handle).unwrap();
     let file = BufReader::new(File::open(filename).unwrap());
     let source = Decoder::new(file).unwrap();
-    stream_handle.play_raw(source.convert_samples());
-    std::thread::sleep(std::time::Duration::from_secs(5));
+    sink.append(source);
+    sink.sleep_until_end();
 }
 
 fn main() {
