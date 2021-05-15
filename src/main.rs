@@ -25,7 +25,19 @@ fn play_mp3(filename: &String) {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let sound_file_name = &args[1];
-    play_mp3(sound_file_name);
-    println!("The song is over!");
+    let mode = &args[1];
+    match mode.as_ref() {
+        "sine" => {
+            let freq: u32 = args[2].trim().parse().expect("Frequency not given as a number!");
+            let dur: f32 = args[3].trim().parse().expect("Duration not given as a number!");
+            play_sine(freq, dur);
+            println!("Sine wave of frequency {} played for {} seconds!", freq, dur);
+        },
+        "mp3" => {
+            let sound_file_name = &args[2];
+            play_mp3(sound_file_name);
+            println!("The song is over!");
+        },
+        _ => println!("Unknown mode!"),
+    }
 }
