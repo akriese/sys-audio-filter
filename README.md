@@ -5,11 +5,12 @@ A tool to manipulate your system audio.
 
 ### TODO:
 
-- [ ] Locate fitting crate to access sound
-- [ ] Send simple audio (e.g. sine wave) to output
-- [ ] Receive audio and send it back to output
+- [x] Locate fitting crate to access sound
+- [x] Send simple audio (e.g. sine wave) to output
+- [ ] Receive system audio and send it back to output
+- [ ] Suppress system audio to prevent double output
 - [ ] Access system audio on multiple platforms
-- [ ] Manipulate master volume
+- [ ] Manipulate stream's master volume
 - [ ] Manipulate chosen frequencies
 - [ ] Command Line interface
 - [ ] GUI interface
