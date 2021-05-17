@@ -5,6 +5,8 @@ use std::time::Duration;
 use rodio::{Decoder, OutputStream, Sink, source::{Source, SineWave}};
 use std::env;
 
+use cpal::traits::HostTrait;
+
 
 fn play_sine(frequency: u32, seconds: f32) {
     let (_stream, stream_handle) = OutputStream::try_default().unwrap();
@@ -23,7 +25,15 @@ fn play_mp3(filename: &String) {
     sink.sleep_until_end();
 }
 
+fn record_sys_audio() {
+    let host = cpal::default_host();
+    //for device in host.devices() {
+        //println!("device: {:?}", device);
+    //}
+}
+
 fn main() {
+    // TODO nutze struct opt for cli
     let args: Vec<String> = env::args().collect();
     let mode = &args[1];
     match mode.as_ref() {
@@ -38,6 +48,7 @@ fn main() {
             play_mp3(sound_file_name);
             println!("The song is over!");
         },
+        "cpal" => record_sys_audio(),
         _ => println!("Unknown mode!"),
     }
 }
