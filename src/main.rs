@@ -1,3 +1,10 @@
+use cpal::traits::HostTrait;
+
 fn main() {
-    println!("Hello, world!");
+    let host = cpal::default_host();
+    println!("The Host is {:?}", host.id());
+    let devices = host.devices();
+    for d in devices {
+        println!(" {} ", d.name());
+    }
 }
