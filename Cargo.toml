@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 cpal = "0.13.3"
 rodio = "0.13.1"
+jack = "0.7"
 
