@@ -1,8 +1,9 @@
 extern crate cpal;
 extern crate anyhow;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use cpal::{SampleFormat};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use rodio::{Sink, OutputStream};
+use rodio::{Sample, Sink, OutputStream, buffer::SamplesBuffer};
 use ctrlc;
 pub use sys_audio_filter::implementations::{InputStreamWrapper, StreamConfig};
 
@@ -45,22 +46,31 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
 
     let err_fn = |err| eprintln!("an error occurred on either audio stream: {}", err);
 
-    let in_conf = StreamConfig{sample_rate: in_config.sample_rate().0, channels: in_config.channels()};
+    let in_conf = StreamConfig{
+        sample_rate: in_config.sample_rate().0,
+        channels: in_config.channels()
+    };
     let sink = Arc::new(Sink::try_new(&stream_handle).expect("couldnt build sink"));
     let sink_clone = sink.clone();
 
-    let in_stream = in_device
-        .build_input_stream(&in_config.into(),
-            move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                // create new source from data and stream configuration
-                let source = InputStreamWrapper::new(data.to_vec(), in_conf);
-                // put source into sink clone (pointing to the original sink)
-                sink_clone.append(source);
-
-                //This is an alternative, which has worse quality than using the sink
-                //stream_handle.play_raw(source).expect("Error while playbacking!");
-            },
-            err_fn)
+    let in_stream =
+        match in_config.sample_format() {
+            SampleFormat::F32 =>
+                in_device.build_input_stream(&in_config.into(),
+                move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                    put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
+                }, err_fn),
+            SampleFormat::I16 =>
+                in_device.build_input_stream(&in_config.into(),
+                move |data: &[i16], _: &cpal::InputCallbackInfo| {
+                    put_to_sink::<i16>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
+                }, err_fn),
+            SampleFormat::U16 =>
+                in_device.build_input_stream(&in_config.into(),
+                move |data: &[u16], _: &cpal::InputCallbackInfo| {
+                    put_to_sink::<u16>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
+                }, err_fn),
+        }
         .unwrap();
 
     // use Ctrl+C handler to interrupt infinite sleeping loop
@@ -86,6 +96,22 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
     // delete stream instance
     drop(in_stream);
     Result::Ok(())
+}
+
+fn put_to_sink<R>(data: &[R], sink: &Arc<Sink>, channels: u16, sample_rate: u32)
+where
+    R: Sample + Send + 'static, // idk why, but this only works with the 'static
+{
+    // create new source from data and stream configuration
+    //let source = InputStreamWrapper::new(data.to_vec(), in_conf);
+
+    // apparently, there already is an alternative for our Wrapper:
+    let source = SamplesBuffer::new(channels, sample_rate, data);
+    // put source into sink clone (pointing to the original sink)
+    sink.append(source);
+
+    //This is an alternative, which has worse quality than using the sink
+    //stream_handle.play_raw(source).expect("Error while playbacking!");
 }
 
 fn main() {
