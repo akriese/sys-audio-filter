@@ -1,13 +1,10 @@
 extern crate cpal;
 extern crate anyhow;
-use cpal::{Sample, SampleFormat};
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-
-fn write_silence<T: Sample>(data: &mut [T], _: &cpal::OutputCallbackInfo) {
-    for sample in data.iter_mut() {
-        *sample = Sample::from(&0.0);
-    }
-}
+use rodio::{Sink, OutputStream};
+use ctrlc;
+pub use sys_audio_filter::implementations::{InputStreamWrapper, StreamConfig};
 
 fn enum_devices() -> Result<(), anyhow::Error> {
     let available_hosts = cpal::available_hosts();
@@ -43,87 +40,55 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
     let in_config = in_device.default_input_config()?;
     println!("Default input config: {:?}", in_config);
 
-    let out_config = out_device.default_input_config()?;
-    println!("Default input config: {:?}", out_config);
+    let out_config = out_device.default_output_config()?;
+    println!("Default output config: {:?}", out_config);
 
     let err_fn = |err| eprintln!("an error occurred on either audio stream: {}", err);
 
-    let mut supported_configs_range = in_device.supported_output_configs()
-        .expect("error while querying configs");
-    let supported_config = supported_configs_range.next()
-        .expect("no supported config?!")
-        .with_max_sample_rate();
-    let sample_format = supported_config.sample_format();
-
-    // vllt buffer benutzen
-    let mut data_vec: Vec<f32> = Vec::new();
+    let in_conf = StreamConfig{sample_rate: in_config.sample_rate().0, channels: in_config.channels()};
+    let sink = Arc::new(Sink::try_new(&stream_handle).expect("couldnt build sink"));
+    let sink_clone = sink.clone();
 
     let in_stream = in_device
-        .build_input_stream(&in_config.into(), move |data: &[T], _: &cpal::InputCallbackInfo| {
-            get_in_stream::<f32>(data, &mut data_vec)
-        },
-        err_fn)
-        .unwrap();
-    let out_stream = out_device
-        .build_output_stream(&out_config.into(), move |data: &mut [T], _: &cpal::OutputCallbackInfo| {
-            write_in_stream::<f32>(data, &data_vec)
-        }, err_fn)
-        .unwrap();
-    //let in_stream = match sample_format {
-        //SampleFormat::F32 => in_device.build_input_stream(&in_config.into(), get_in_stream::<f32>, err_fn),
-        //SampleFormat::I16 => in_device.build_input_stream(&in_config.into(), get_in_stream::<i16>, err_fn),
-        //SampleFormat::U16 => in_device.build_input_stream(&in_config.into(), get_in_stream::<u16>, err_fn),
-    //}.unwrap();
+        .build_input_stream(&in_config.into(),
+            move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                // create new source from data and stream configuration
+                let source = InputStreamWrapper::new(data.to_vec(), in_conf);
+                // put source into sink clone (pointing to the original sink)
+                sink_clone.append(source);
 
-    //let out_stream = match sample_format {
-        //SampleFormat::F32 => out_device.build_output_stream(&out_config.into(), write_in_stream::<f32>, err_fn),
-        //SampleFormat::I16 => out_device.build_output_stream(&out_config.into(), write_in_stream::<i16>, err_fn),
-        //SampleFormat::U16 => out_device.build_output_stream(&out_config.into(), write_in_stream::<u16>, err_fn),
-    //}.unwrap();
+                //This is an alternative, which has worse quality than using the sink
+                //stream_handle.play_raw(source).expect("Error while playbacking!");
+            },
+            err_fn)
+        .unwrap();
 
+    // use Ctrl+C handler to interrupt infinite sleeping loop
+    let game_over: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+    let game_over_clone = game_over.clone();
+    ctrlc::set_handler(move || {
+        game_over_clone.store(true, Ordering::Relaxed);
+        println!("Keyboard Interrupt received!");
+    }).expect("Error setting Ctrl+C handler");
+
+    // start playback
     in_stream.play()?;
-    out_stream.play()?;
+    sink.sleep_until_end();
 
-    std::thread::sleep(std::time::Duration::from_secs(3));
+    // wait in an infinite loop and wait for Keyboard Interrupt
+    loop {
+        if game_over.load(Ordering::Relaxed) {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(200));
+    }
+
+    // delete stream instance
     drop(in_stream);
-    drop(out_stream);
-
     Result::Ok(())
-}
-
-fn get_in_stream<T>(input: &[T], data_vec: &mut &[T])
-where
-    T: Sample,
-{
-    for &sample in input.iter() {
-        let sam: T = cpal::Sample::from(&sample);
-        data_vec.push(sam);
-    }
-}
-
-fn write_in_stream<T: Sample>(data: &mut [T], src: &[T]) {
-    for sample in data.iter_mut() {
-        *sample = Sample::from(&0.0);
-    }
 }
 
 fn main() {
     enum_devices().expect("Well, something went wrong apparently...");
     forward_input_to_output();
-    let host = cpal::default_host();
-    let device = host.default_output_device().expect("no output device available");
-    let mut supported_configs_range = device.supported_output_configs()
-        .expect("error while querying configs");
-    let supported_config = supported_configs_range.next()
-        .expect("no supported config?!")
-        .with_max_sample_rate();
-    let err_fn = |err| eprintln!("an error occurred on the output audio stream: {}", err);
-    let sample_format = supported_config.sample_format();
-    let config = supported_config.into();
-    let stream = match sample_format {
-        SampleFormat::F32 => device.build_output_stream(&config, write_silence::<f32>, err_fn),
-        SampleFormat::I16 => device.build_output_stream(&config, write_silence::<i16>, err_fn),
-        SampleFormat::U16 => device.build_output_stream(&config, write_silence::<u16>, err_fn),
-    }.unwrap();
-    stream.play().unwrap();
 }
