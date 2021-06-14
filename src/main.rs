@@ -39,6 +39,7 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
         .unwrap_or(false))
         .expect("Failed to find input device!");
 
+    let (_stream, stream_handle) = OutputStream::try_from_device(&out_device)?;
     let in_config = in_device.default_input_config()?;
     println!("Default input config: {:?}", in_config);
 
