@@ -10,4 +10,5 @@ edition = "2018"
 cpal = "0.13.3"
 rodio = "0.13.1"
 anyhow = "1.0.40"
+ctrlc = "3.1.9"
 
