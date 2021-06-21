@@ -7,15 +7,19 @@ A tool to manipulate your system audio.
 
 - [x] Locate fitting crate to access sound
 - [x] Send simple audio (e.g. sine wave) to output
-- [ ] Receive system audio and send it back to output
-- [ ] Suppress system audio to prevent double output
-- [ ] Access system audio on multiple platforms
-- [ ] Manipulate stream's master volume
+- [x] Receive system audio and send it back to output
+- [x] Suppress system audio to prevent double output
+- [x] Access system audio on multiple platforms
+- [x] Manipulate stream's master volume
 - [ ] Manipulate chosen frequencies
+- [ ] Convert between different sample rates
 - [ ] Command Line interface
+  - [ ] Enumerate all available devices and let the user choose input and output
+  - [ ] Record into file
 - [ ] GUI interface
   - [ ] Live output graph of frequencies
   - [ ] Drag filters in graph
+
 
 
 # Dependencies
