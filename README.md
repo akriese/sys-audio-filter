@@ -17,3 +17,7 @@ A tool to manipulate your system audio.
   - [ ] Live output graph of frequencies
   - [ ] Drag filters in graph
 
+
+# Dependencies
+
+On Linux, the usage of rodio and cpal requires the ALSA development files.
