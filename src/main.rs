@@ -3,7 +3,7 @@ extern crate anyhow;
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use cpal::{SampleFormat};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use rodio::{Sample, Sink, OutputStream, buffer::SamplesBuffer};
+use rodio::{Source, Sample, Sink, OutputStream, buffer::SamplesBuffer};
 use ctrlc;
 pub use sys_audio_filter::implementations::{InputStreamWrapper, StreamConfig};
 
@@ -58,7 +58,10 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
             SampleFormat::F32 =>
                 in_device.build_input_stream(&in_config.into(),
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                    put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
+                    let source = SamplesBuffer::new(in_conf.channels, in_conf.sample_rate, data);
+                    //let source = Source::low_pass(source, 3000);
+                    sink_clone.append(source);
+                    //put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
                 }, err_fn),
             SampleFormat::I16 =>
                 in_device.build_input_stream(&in_config.into(),
@@ -85,10 +88,17 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
     in_stream.play()?;
     sink.sleep_until_end();
 
+    let mut initial_vol = 1.0;
+    let mut cntr = 0;
     // wait in an infinite loop and wait for Keyboard Interrupt
     loop {
+        cntr += 1;
         if game_over.load(Ordering::Relaxed) {
             break;
+        }
+        if cntr % 5 == 0 {
+            initial_vol -= 0.1;
+            sink.set_volume(initial_vol);
         }
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
@@ -107,7 +117,7 @@ where
 
     // apparently, there already is an alternative for our Wrapper:
     let source = SamplesBuffer::new(channels, sample_rate, data);
-    // put source into sink clone (pointing to the original sink)
+    //Source::low_pass(source, 1000);
     sink.append(source);
 
     //This is an alternative, which has worse quality than using the sink
