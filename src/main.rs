@@ -107,24 +107,65 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
     in_stream.play()?;
     sink.sleep_until_end();
 
-    let mut initial_vol = 1.0;
-    let mut cntr = 0;
+    let mut volume = 1.0;
     // wait in an infinite loop and wait for Keyboard Interrupt
     loop {
-        cntr += 1;
+        //cntr += 1;
         if game_over.load(Ordering::Relaxed) {
             break;
         }
-        if cntr % 5 == 0 {
-            initial_vol -= 0.1;
-            sink.set_volume(initial_vol);
+
+        let inp = get_input();
+        let command = inp.as_bytes();
+        if command.len() > 0 {
+            let mut val = 0.0;
+            if command.len() > 2 {
+                val = inp[2..].to_string().parse::<f32>().unwrap();
+            }
+            match command[0] as char {
+                'l' => {
+                    match command[1] as char {
+                        '+' => cutoff1 = (cutoff1.hz() + val).hz(),
+                        '-' => cutoff1 = (cutoff1.hz() - val).hz(),
+                        _ => cutoff1 = inp[1..].to_string().parse::<f32>().unwrap().hz(),
+                    };
+                    biquad1.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(LowPass, fs, cutoff1, Q_BUTTERWORTH_F32).unwrap());
+                },
+                'h' => {
+                    match command[1] as char {
+                        '+' => cutoff2 = (cutoff2.hz() + val).hz(),
+                        '-' => cutoff2 = (cutoff2.hz() - val).hz(),
+                        _ => cutoff2 = inp[1..].to_string().parse::<f32>().unwrap().hz(),
+                    };
+                    biquad2.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(HighPass, fs, cutoff2, Q_BUTTERWORTH_F32).unwrap());
+                },
+                'v' => {
+                    match command[1] as char {
+                        '+' => volume += val,
+                        '-' => volume -= val,
+                        _ => volume = inp[1..].to_string().parse::<f32>().unwrap(),
+                    };
+                    sink.set_volume(volume);
+                }
+                'q' => break,
+                _ => { },
+            };
+            println!("Vol: {}, Low: {}, High: {}", volume, cutoff1.hz(), cutoff2.hz());
         }
+
         std::thread::sleep(std::time::Duration::from_millis(200));
     }
 
     // delete stream instance
     drop(in_stream);
     Result::Ok(())
+}
+
+fn get_input() -> String {
+    let mut inp = String::new();
+    std::io::stdin().read_line(&mut inp).expect("Error reading terminal input!");
+    inp = inp.trim().to_string();
+    inp
 }
 
 fn put_to_sink<R>(data: &[R], sink: &Arc<Sink>, channels: u16, sample_rate: u32)
