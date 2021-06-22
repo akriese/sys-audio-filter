@@ -153,7 +153,7 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
             println!("Vol: {}, Low: {}, High: {}", volume, cutoff1.hz(), cutoff2.hz());
         }
 
-        std::thread::sleep(std::time::Duration::from_millis(200));
+        std::thread::sleep(std::time::Duration::from_millis(20));
     }
 
     // delete stream instance
