@@ -118,32 +118,28 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
         let inp = get_input();
         let command = inp.as_bytes();
         if command.len() > 0 {
-            let mut val = 0.0;
-            if command.len() > 2 {
-                val = inp[2..].to_string().parse::<f32>().unwrap();
-            }
+            let val = inp[1..].to_string().parse::<f32>().unwrap();
             match command[0] as char {
                 'l' => {
-                    match command[1] as char {
-                        '+' => cutoff1 = (cutoff1.hz() + val).hz(),
-                        '-' => cutoff1 = (cutoff1.hz() - val).hz(),
-                        _ => cutoff1 = inp[1..].to_string().parse::<f32>().unwrap().hz(),
-                    };
+                    let old_val = cutoff1.hz();
+                    cutoff1 = match command[1] as char {
+                        '+' | '-' => (old_val + val).max(1.1),
+                        _ => val.max(1.1),
+                    }.hz();
                     biquad1.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(LowPass, fs, cutoff1, Q_BUTTERWORTH_F32).unwrap());
                 },
                 'h' => {
-                    match command[1] as char {
-                        '+' => cutoff2 = (cutoff2.hz() + val).hz(),
-                        '-' => cutoff2 = (cutoff2.hz() - val).hz(),
-                        _ => cutoff2 = inp[1..].to_string().parse::<f32>().unwrap().hz(),
-                    };
+                    let old_val = cutoff2.hz();
+                    cutoff2 = match command[1] as char {
+                        '+' | '-' => (old_val + val).max(1.1),
+                        _ => val.max(1.1),
+                    }.hz();
                     biquad2.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(HighPass, fs, cutoff2, Q_BUTTERWORTH_F32).unwrap());
                 },
                 'v' => {
-                    match command[1] as char {
-                        '+' => volume += val,
-                        '-' => volume -= val,
-                        _ => volume = inp[1..].to_string().parse::<f32>().unwrap(),
+                    volume = match command[1] as char {
+                        '+' | '-' => (volume + val).max(0.0),
+                        _ => val.max(0.0),
                     };
                     sink.set_volume(volume);
                 }
