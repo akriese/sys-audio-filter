@@ -1,11 +1,14 @@
 extern crate cpal;
 extern crate anyhow;
-use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use std::sync::{Mutex, Arc, atomic::{AtomicBool, Ordering}};
 use cpal::{SampleFormat};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use rodio::{Source, Sample, Sink, OutputStream, buffer::SamplesBuffer};
+use rodio::{Sample, Sink, OutputStream, buffer::SamplesBuffer};
 use ctrlc;
+use biquad::{Biquad, frequency::{ToHertz}, Coefficients, DirectForm1, Type::{LowPass, HighPass}};
+use biquad::Q_BUTTERWORTH_F32;
 pub use sys_audio_filter::implementations::{InputStreamWrapper, StreamConfig};
+
 
 fn enum_devices() -> Result<(), anyhow::Error> {
     let available_hosts = cpal::available_hosts();
