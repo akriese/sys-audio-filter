@@ -53,13 +53,29 @@ fn forward_input_to_output() -> Result<(), anyhow::Error> {
     let sink = Arc::new(Sink::try_new(&stream_handle).expect("couldnt build sink"));
     let sink_clone = sink.clone();
 
+
+    let fs = in_conf.sample_rate.hz();
+    let mut cutoff1 = 20.khz();
+    let coeffs1 = Coefficients::<f32>::from_params(LowPass, fs, cutoff1, Q_BUTTERWORTH_F32).unwrap();
+    let biquad1 = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs1)));
+
+    let mut cutoff2 = 10.hz();
+    let coeffs2 = Coefficients::<f32>::from_params(HighPass, fs, cutoff2, Q_BUTTERWORTH_F32).unwrap();
+    let biquad2 = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs2)));
+
+    let biquad1_cpy = Arc::clone(&biquad1);
+    let biquad2_cpy = Arc::clone(&biquad2);
+    //let mut biquad1 = DirectForm1::<f32>::new(coeffs);
+    //let mut biquad2 = DirectForm2Transposed::<f32>::new(coeffs);
+
     let in_stream =
         match in_config.sample_format() {
             SampleFormat::F32 =>
                 in_device.build_input_stream(&in_config.into(),
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                    let source = SamplesBuffer::new(in_conf.channels, in_conf.sample_rate, data);
-                    //let source = Source::low_pass(source, 3000);
+                    let filtered_data: Vec<f32> = data.iter().map(|x| biquad1_cpy.lock().unwrap().run(*x)).collect();
+                    let filtered_data: Vec<f32> = filtered_data.iter().map(|x| biquad2_cpy.lock().unwrap().run(*x)).collect();
+                    let source = SamplesBuffer::new(in_conf.channels, in_conf.sample_rate, filtered_data);
                     sink_clone.append(source);
                     //put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
                 }, err_fn),
@@ -126,5 +142,5 @@ where
 
 fn main() {
     enum_devices().expect("Well, something went wrong apparently...");
-    forward_input_to_output();
+    forward_input_to_output().expect("Forwarding the input to output resulted in an error!");
 }
