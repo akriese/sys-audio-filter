@@ -5,18 +5,24 @@ use std::fs;
 use std::io::prelude::*;
 
 fn main() {
+    // To do: Verallgemeinern
     let spec = Spec {
         format: Format::S16NE,
         channels: 2,
         rate: 44100,
     };
+    
+    // To do: User gibt Source und Sink an oder wählt aus Liste aus
+
     assert!(spec.is_valid());
+
+    let device = "alsa_output.pci-0000_00_1b.0.analog-stereo.monitor";
 
     let s = Simple::new(
         None,                // Use the default server
         "FooApp",            // Our application’s name
-        Direction::Playback, // We want a playback stream
-        None,                // Use the default device
+        Direction::Recording, // We want a playback stream
+        Some(device),           // Use the default device
         "Music",             // Description of our stream
         &spec,               // Our sample format
         None,                // Use default channel map
@@ -25,7 +31,7 @@ fn main() {
 
 
     // Hier Song-Datei öffnen und in Array einlesen
-    let samples = fs::read("testOutput.raw").unwrap();
+    // let samples = fs::read("testOutput.raw").unwrap();
     // println!("Es sind soviele u8s drin: {}", samples.len());
 
     s.write(&samples).unwrap();
