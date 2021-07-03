@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 rodio = "0.14.0"
 cpal = "0.13.3"
+biquad = "0.4.1"
 psimple = { version = "2.23.0", package = "libpulse-simple-binding" }
 pulse = { version = "2.23.0", package = "libpulse-binding" }
 
