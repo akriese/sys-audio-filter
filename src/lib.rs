@@ -11,7 +11,9 @@ pub mod implementations {
     pub trait FilterBox {
         fn init(&mut self) -> Result<(), anyhow::Error>;
         fn play(&self) -> Result<(), anyhow::Error>;
-        fn set_filter(&self, freq: usize, target_high_pass: bool);
+        fn set_filter(&self, freq: f32, target_high_pass: bool);
+        fn is_finished(&self) -> bool;
+        fn finish(&self);
     }
 
     pub struct CpalMgr {
@@ -23,8 +25,6 @@ pub mod implementations {
         channels: u16,
         low_pass: Arc<Mutex<DirectForm1<f32>>>,
         high_pass: Arc<Mutex<DirectForm1<f32>>>,
-        cutoff_low: usize,
-        cutoff_high: usize,
         is_finished: Arc<AtomicBool>,
     }
 
@@ -70,7 +70,7 @@ pub mod implementations {
             let channels = in_cfg.channels();
 
             Result::Ok(
-                CpalMgr{ input_device, output_device, in_cfg, out_cfg, sample_rate: fs, channels, low_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), high_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), cutoff_low: 0, cutoff_high: 0, is_finished })
+                CpalMgr{ input_device, output_device, in_cfg, out_cfg, sample_rate: fs, channels, low_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), high_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), is_finished })
         }
     }
 
@@ -149,8 +149,21 @@ pub mod implementations {
             Result::Ok(())
         }
 
-        fn set_filter(&self, freq: usize, target_high_pass: bool) {
+        fn set_filter(&self, freq: f32, target_high_pass: bool) {
+            if target_high_pass {
+                self.high_pass.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(HighPass, self.sample_rate.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap());
+            }
+            else {
+                self.low_pass.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(LowPass, self.sample_rate.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap());
+            }
+        }
 
+        fn is_finished(&self) -> bool {
+            self.is_finished.load(Ordering::Relaxed)
+        }
+
+        fn finish(&self) {
+            self.is_finished.store(true, Ordering::Relaxed);
         }
     }
 }
