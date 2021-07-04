@@ -2,15 +2,11 @@ pub mod implementations {
     extern crate cpal;
     extern crate anyhow;
     use cpal::{SampleFormat};
-    use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+    use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
     use rodio::{Sample, Sink, OutputStream, buffer::SamplesBuffer};
-
-    #[derive(Copy, Clone)]
-    pub struct StreamConfig {
-        pub sample_rate: u32,
-        pub channels: u16,
-    }
+    use biquad::{Biquad, frequency::{ToHertz}, Coefficients, DirectForm1, Type::{LowPass, HighPass}};
+    use biquad::Q_BUTTERWORTH_F32;
 
     pub trait FilterBox {
         fn init(&mut self) -> Result<(), anyhow::Error>;
@@ -21,12 +17,14 @@ pub mod implementations {
     pub struct CpalMgr {
         input_device: cpal::Device,
         output_device: cpal::Device,
-        //in_cfg: cpal::SupportedStreamConfig,
-        //out_cfg: cpal::SupportedStreamConfig,
-        //sink: Arc<rodio::Sink>,
-        //stream_handle: rodio::OutputStreamHandle,
-        //low_pass:
-        //high_pass:
+        in_cfg: cpal::SupportedStreamConfig,
+        out_cfg: cpal::SupportedStreamConfig,
+        sample_rate: u32,
+        channels: u16,
+        low_pass: Arc<Mutex<DirectForm1<f32>>>,
+        high_pass: Arc<Mutex<DirectForm1<f32>>>,
+        cutoff_low: usize,
+        cutoff_high: usize,
         is_finished: Arc<AtomicBool>,
     }
 
@@ -59,11 +57,20 @@ pub mod implementations {
                       .unwrap_or(false))
                 .expect("Failed to find input device!");
 
+            let in_cfg = input_device.default_input_config()?;
+            println!("Default input config: {:?}", in_cfg);
 
+            let out_cfg = output_device.default_output_config()?;
+            println!("Default output config: {:?}", out_cfg);
+
+
+            let fs = in_cfg.sample_rate().0;
+            let coeffs = Coefficients::<f32>::from_params(LowPass, fs.hz(), 20000.hz(), Q_BUTTERWORTH_F32).unwrap();
             let is_finished = Arc::new(AtomicBool::new(false));
+            let channels = in_cfg.channels();
 
-
-            Result::Ok(CpalMgr{ input_device, output_device, is_finished })
+            Result::Ok(
+                CpalMgr{ input_device, output_device, in_cfg, out_cfg, sample_rate: fs, channels, low_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), high_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), cutoff_low: 0, cutoff_high: 0, is_finished })
         }
     }
 
@@ -87,42 +94,36 @@ pub mod implementations {
 
         fn play(&self) -> Result<(), anyhow::Error> {
             let (_stream, stream_handle) = OutputStream::try_from_device(&self.output_device)?;
-            let in_cfg = self.input_device.default_input_config()?;
-            println!("Default input config: {:?}", in_cfg);
-
-            let out_cfg = self.output_device.default_output_config()?;
-            println!("Default output config: {:?}", out_cfg);
 
             let sink = Arc::new(Sink::try_new(&stream_handle).expect("couldnt build sink"));
-            //let sink_clone = self.sink.clone();
             let sink_clone = sink.clone();
-
-            let stream_conf = StreamConfig{
-                sample_rate: in_cfg.sample_rate().0,
-                channels: in_cfg.channels()
-            };
+            let channels_cpy = self.channels.clone();
+            let sample_rate_cpy = self.sample_rate.clone();
+            let low_pass_cpy = self.low_pass.clone();
+            let high_pass_cpy = self.high_pass.clone();
 
             let err_fn = |err| eprintln!("an error occurred on either audio stream: {}", err);
 
-
             let in_stream =
-                match in_cfg.sample_format() {
+                match self.in_cfg.sample_format() {
                     SampleFormat::F32 =>
-                        self.input_device.build_input_stream(&in_cfg.clone().into(),
+                        self.input_device.build_input_stream(&self.in_cfg.clone().into(),
                         move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                            let source = SamplesBuffer::new(stream_conf.channels, stream_conf.sample_rate, data);
+                            let filtered_data: Vec<f32> = data.iter().map(|x| low_pass_cpy.lock().unwrap().run(*x)).collect();
+                            let filtered_data: Vec<f32> = filtered_data.iter().map(|x| high_pass_cpy.lock().unwrap().run(*x)).collect();
+                            let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                             sink_clone.append(source);
                             //put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
                         }, err_fn),
                     SampleFormat::I16 =>
-                        self.input_device.build_input_stream(&in_cfg.clone().into(),
+                        self.input_device.build_input_stream(&self.in_cfg.clone().into(),
                         move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                            put_to_sink::<i16>(data, &sink_clone, stream_conf.channels, stream_conf.sample_rate);
+                            put_to_sink::<i16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
                         }, err_fn),
                     SampleFormat::U16 =>
-                        self.input_device.build_input_stream(&in_cfg.clone().into(),
+                        self.input_device.build_input_stream(&self.in_cfg.clone().into(),
                         move |data: &[u16], _: &cpal::InputCallbackInfo| {
-                            put_to_sink::<u16>(data, &sink_clone, stream_conf.channels, stream_conf.sample_rate);
+                            put_to_sink::<u16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
                         }, err_fn),
                 }
             .unwrap();
