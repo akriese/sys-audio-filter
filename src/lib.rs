@@ -1,13 +1,20 @@
 pub mod implementations {
-    extern crate cpal;
     extern crate anyhow;
-    use std::io::{Write, stdin, stdout};
-    use cpal::{SampleFormat};
-    use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
-    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-    use rodio::{Sample, Sink, OutputStream, buffer::SamplesBuffer};
-    use biquad::{Biquad, frequency::{ToHertz}, Coefficients, DirectForm1, Type::{LowPass, HighPass}};
+    extern crate cpal;
     use biquad::Q_BUTTERWORTH_F32;
+    use biquad::{
+        frequency::ToHertz,
+        Biquad, Coefficients, DirectForm1,
+        Type::{HighPass, LowPass},
+    };
+    use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+    use cpal::SampleFormat;
+    use rodio::{buffer::SamplesBuffer, OutputStream, Sample, Sink};
+    use std::io::{stdin, stdout, Write};
+    use std::sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    };
 
     pub trait FilterBox {
         fn init(&mut self) -> Result<(), anyhow::Error>;
@@ -30,15 +37,15 @@ pub mod implementations {
     }
 
     fn put_to_sink<R>(data: &[R], sink: &Arc<Sink>, channels: u16, sample_rate: u32)
-        where
-            R: Sample + Send + 'static, // idk why, but this only works with the 'static
-        {
-            let source = SamplesBuffer::new(channels, sample_rate, data);
-            sink.append(source);
-        }
+    where
+        R: Sample + Send + 'static, // idk why, but this only works with the 'static
+    {
+        let source = SamplesBuffer::new(channels, sample_rate, data);
+        sink.append(source);
+    }
 
     impl CpalMgr {
-        pub fn new() -> Result<CpalMgr, anyhow::Error>{
+        pub fn new() -> Result<CpalMgr, anyhow::Error> {
             let host = cpal::default_host();
             let (input_device, output_device) = CpalMgr::choose_input_output(&host).unwrap();
 
@@ -48,31 +55,44 @@ pub mod implementations {
             let out_cfg = output_device.default_output_config()?;
             println!("Default output config: {:?}", out_cfg);
 
-
             let fs = in_cfg.sample_rate().0;
-            let coeffs = Coefficients::<f32>::from_params(LowPass, fs.hz(), 20000.hz(), Q_BUTTERWORTH_F32).unwrap();
+            let coeffs =
+                Coefficients::<f32>::from_params(LowPass, fs.hz(), 20000.hz(), Q_BUTTERWORTH_F32)
+                    .unwrap();
             let is_finished = Arc::new(AtomicBool::new(false));
             let channels = in_cfg.channels();
 
-            Result::Ok(
-                CpalMgr{ input_device, output_device, in_cfg, sample_rate: fs, channels, low_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), high_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), is_finished })
+            Result::Ok(CpalMgr {
+                input_device,
+                output_device,
+                in_cfg,
+                sample_rate: fs,
+                channels,
+                low_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))),
+                high_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))),
+                is_finished,
+            })
         }
 
-        fn choose_input_output(host: &cpal::Host) -> Result<(cpal::Device, cpal::Device), anyhow::Error> {
+        fn choose_input_output(
+            host: &cpal::Host,
+        ) -> Result<(cpal::Device, cpal::Device), anyhow::Error> {
             let input_device = CpalMgr::choose_device(host, true)?;
             let output_device = CpalMgr::choose_device(host, false)?;
 
             Result::Ok((input_device, output_device))
         }
 
-        fn choose_device(host: &cpal::Host, target_input: bool) -> Result<cpal::Device, anyhow::Error> {
+        fn choose_device(
+            host: &cpal::Host,
+            target_input: bool,
+        ) -> Result<cpal::Device, anyhow::Error> {
             let mut input = String::new();
 
             let mut devices = if target_input {
                 println!("Input devices:");
                 host.input_devices()?
-            }
-            else {
+            } else {
                 println!("Output devices:");
                 host.output_devices()?
             };
@@ -92,20 +112,18 @@ pub mod implementations {
             let device = if index < 0 || index >= device_count {
                 if target_input {
                     host.default_input_device()
-                }
-                else {
+                } else {
                     host.default_output_device()
                 }
-            }
-            else {
+            } else {
                 devices = if target_input {
                     host.input_devices()?
-                }
-                else {
+                } else {
                     host.output_devices()?
                 };
                 devices.nth(index as usize)
-            }.unwrap();
+            }
+            .unwrap();
 
             println!("You have chosen {:?} as device!\n", device.name());
 
@@ -116,14 +134,22 @@ pub mod implementations {
     impl FilterBox for CpalMgr {
         fn init(&mut self) -> Result<(), anyhow::Error> {
             let host = cpal::default_host();
-            self.input_device = host.input_devices()?
-                .find(|x| x.name().map(|y| y == "CABLE Output (VB-Audio Virtual Cable)")
-                      .unwrap_or(false))
+            self.input_device = host
+                .input_devices()?
+                .find(|x| {
+                    x.name()
+                        .map(|y| y == "CABLE Output (VB-Audio Virtual Cable)")
+                        .unwrap_or(false)
+                })
                 .expect("Failed to find input device!");
 
-            self.output_device = host.output_devices()?
-                .find(|x| x.name().map(|y| y == "Lautsprecher (Realtek(R) Audio)")
-                      .unwrap_or(false))
+            self.output_device = host
+                .output_devices()?
+                .find(|x| {
+                    x.name()
+                        .map(|y| y == "Lautsprecher (Realtek(R) Audio)")
+                        .unwrap_or(false)
+                })
                 .expect("Failed to find input device!");
 
             self.is_finished = Arc::new(AtomicBool::new(false));
@@ -143,28 +169,40 @@ pub mod implementations {
 
             let err_fn = |err| eprintln!("an error occurred on either audio stream: {}", err);
 
-            let in_stream =
-                match self.in_cfg.sample_format() {
-                    SampleFormat::F32 =>
-                        self.input_device.build_input_stream(&self.in_cfg.clone().into(),
-                        move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                            let filtered_data: Vec<f32> = data.iter().map(|x| low_pass_cpy.lock().unwrap().run(*x)).collect();
-                            let filtered_data: Vec<f32> = filtered_data.iter().map(|x| high_pass_cpy.lock().unwrap().run(*x)).collect();
-                            let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
-                            sink_clone.append(source);
-                            //put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
-                        }, err_fn),
-                    SampleFormat::I16 =>
-                        self.input_device.build_input_stream(&self.in_cfg.clone().into(),
-                        move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                            put_to_sink::<i16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
-                        }, err_fn),
-                    SampleFormat::U16 =>
-                        self.input_device.build_input_stream(&self.in_cfg.clone().into(),
-                        move |data: &[u16], _: &cpal::InputCallbackInfo| {
-                            put_to_sink::<u16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
-                        }, err_fn),
-                }
+            let in_stream = match self.in_cfg.sample_format() {
+                SampleFormat::F32 => self.input_device.build_input_stream(
+                    &self.in_cfg.clone().into(),
+                    move |data: &[f32], _: &cpal::InputCallbackInfo| {
+                        let filtered_data: Vec<f32> = data
+                            .iter()
+                            .map(|x| low_pass_cpy.lock().unwrap().run(*x))
+                            .collect();
+                        let filtered_data: Vec<f32> = filtered_data
+                            .iter()
+                            .map(|x| high_pass_cpy.lock().unwrap().run(*x))
+                            .collect();
+                        let source =
+                            SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
+                        sink_clone.append(source);
+                        //put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
+                    },
+                    err_fn,
+                ),
+                SampleFormat::I16 => self.input_device.build_input_stream(
+                    &self.in_cfg.clone().into(),
+                    move |data: &[i16], _: &cpal::InputCallbackInfo| {
+                        put_to_sink::<i16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
+                    },
+                    err_fn,
+                ),
+                SampleFormat::U16 => self.input_device.build_input_stream(
+                    &self.in_cfg.clone().into(),
+                    move |data: &[u16], _: &cpal::InputCallbackInfo| {
+                        put_to_sink::<u16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
+                    },
+                    err_fn,
+                ),
+            }
             .unwrap();
 
             // use Ctrl+C handler to interrupt infinite sleeping loop
@@ -172,7 +210,8 @@ pub mod implementations {
             ctrlc::set_handler(move || {
                 is_finished_cln.store(true, Ordering::Relaxed);
                 println!("Keyboard Interrupt received!");
-            }).expect("Error setting Ctrl+C handler");
+            })
+            .expect("Error setting Ctrl+C handler");
 
             // start playback
             in_stream.play()?;
@@ -190,10 +229,25 @@ pub mod implementations {
 
         fn set_filter(&self, freq: f32, target_high_pass: bool) {
             if target_high_pass {
-                self.high_pass.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(HighPass, self.sample_rate.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap());
-            }
-            else {
-                self.low_pass.lock().unwrap().update_coefficients(Coefficients::<f32>::from_params(LowPass, self.sample_rate.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap());
+                self.high_pass.lock().unwrap().update_coefficients(
+                    Coefficients::<f32>::from_params(
+                        HighPass,
+                        self.sample_rate.hz(),
+                        freq.hz(),
+                        Q_BUTTERWORTH_F32,
+                    )
+                    .unwrap(),
+                );
+            } else {
+                self.low_pass.lock().unwrap().update_coefficients(
+                    Coefficients::<f32>::from_params(
+                        LowPass,
+                        self.sample_rate.hz(),
+                        freq.hz(),
+                        Q_BUTTERWORTH_F32,
+                    )
+                    .unwrap(),
+                );
             }
         }
 
