@@ -1,6 +1,7 @@
 pub mod implementations {
     extern crate cpal;
     extern crate anyhow;
+    use std::io::{Write, stdin, stdout};
     use cpal::{SampleFormat};
     use std::sync::{Arc, Mutex, atomic::{AtomicBool, Ordering}};
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -39,15 +40,7 @@ pub mod implementations {
     impl CpalMgr {
         pub fn new() -> Result<CpalMgr, anyhow::Error>{
             let host = cpal::default_host();
-            let input_device = host.input_devices()?
-                .find(|x| x.name().map(|y| y == "CABLE Output (VB-Audio Virtual Cable)")
-                      .unwrap_or(false))
-                .expect("Failed to find input device!");
-
-            let output_device = host.output_devices()?
-                .find(|x| x.name().map(|y| y == "Lautsprecher (Realtek(R) Audio)")
-                      .unwrap_or(false))
-                .expect("Failed to find input device!");
+            let (input_device, output_device) = CpalMgr::choose_input_output(&host).unwrap();
 
             let in_cfg = input_device.default_input_config()?;
             println!("Default input config: {:?}", in_cfg);
@@ -62,7 +55,61 @@ pub mod implementations {
             let channels = in_cfg.channels();
 
             Result::Ok(
-                CpalMgr{ input_device, output_device, in_cfg, out_cfg, sample_rate: fs, channels, low_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), high_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), is_finished })
+                CpalMgr{ input_device, output_device, in_cfg, sample_rate: fs, channels, low_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), high_pass: Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs))), is_finished })
+        }
+
+        fn choose_input_output(host: &cpal::Host) -> Result<(cpal::Device, cpal::Device), anyhow::Error> {
+            let input_device = CpalMgr::choose_device(host, true)?;
+            let output_device = CpalMgr::choose_device(host, false)?;
+
+            Result::Ok((input_device, output_device))
+        }
+
+        fn choose_device(host: &cpal::Host, target_input: bool) -> Result<cpal::Device, anyhow::Error> {
+            let mut input = String::new();
+
+            let mut devices = if target_input {
+                println!("Input devices:");
+                host.input_devices()?
+            }
+            else {
+                println!("Output devices:");
+                host.output_devices()?
+            };
+            let mut device_count = 0; // unfortunately, size_hint() is not helpful here
+            for (device_index, device) in devices.enumerate() {
+                println!("{}. \"{}\"", device_index, device.name()?);
+                device_count += 1;
+            }
+            print!("Choose a device by its index: ");
+            stdout().flush()?;
+            stdin().read_line(&mut input).expect("Error reading input");
+            let mut index = -1;
+            if input.trim().len() > 0 {
+                index = input.trim().to_string().parse::<i16>().unwrap();
+            }
+
+            let device = if index < 0 || index >= device_count {
+                if target_input {
+                    host.default_input_device()
+                }
+                else {
+                    host.default_output_device()
+                }
+            }
+            else {
+                devices = if target_input {
+                    host.input_devices()?
+                }
+                else {
+                    host.output_devices()?
+                };
+                devices.nth(index as usize)
+            }.unwrap();
+
+            println!("You have chosen {:?} as device!\n", device.name());
+
+            Result::Ok(device)
         }
     }
 
