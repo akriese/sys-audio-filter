@@ -21,7 +21,7 @@ pub mod implementations {
         input_device: cpal::Device,
         output_device: cpal::Device,
         in_cfg: cpal::SupportedStreamConfig,
-        out_cfg: cpal::SupportedStreamConfig,
+        //out_cfg: cpal::SupportedStreamConfig,
         sample_rate: u32,
         channels: u16,
         low_pass: Arc<Mutex<DirectForm1<f32>>>,
