@@ -1,9 +1,38 @@
-##### System Audio Filter
+# System Audio Filter
 
 A tool to manipulate your system audio.
 
+## What does it do?
 
-### TODO:
+This programm takes an audio source as input and puts the audio back to an output device
+while filtering chosen frequencies. Currently, the combination of a LowPass and a
+HighPass filter by [biquad](https://docs.rs/biquad/0.4.1/biquad/)
+is being used to accomplish the desired effects.
+
+
+## Setup / Usage
+
+### Windows
+Generally,
+```powershell
+cargo run
+```
+should suffice if you just want to use a microphone as input. If you want to pipe all your
+system's sound to the program you might want to install a virtual audio device such as the
+[Virtual Audio Cable](https://vb-audio.com/Cable/). After installing such a device, you need to set the standard
+audio output of Windows to that device so that the sys-audio-filter can modify it.
+
+
+## Dependencies
+
+### Linux
+The usage of rodio and cpal requires the ALSA development files.
+
+### Windows
+No further requirements except the optional virtual audio cable mentioned above.
+
+
+## TODO:
 
 - [x] Locate fitting crate to access sound
 - [x] Send simple audio (e.g. sine wave) to output
@@ -20,8 +49,3 @@ A tool to manipulate your system audio.
   - [ ] Live output graph of frequencies
   - [ ] Drag filters in graph
 
-
-
-# Dependencies
-
-On Linux, the usage of rodio and cpal requires the ALSA development files.
