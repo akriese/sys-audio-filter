@@ -32,6 +32,7 @@ fn get_input() -> String {
 
 fn main() {
     enum_devices().expect("Error enumerating devices!");
+    #[cfg(target_os = "windows")]
     let filter_box = Arc::new((CpalMgr::new().unwrap()));
     let filter_box_cln = filter_box.clone();
 
