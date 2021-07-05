@@ -9,6 +9,17 @@ while filtering chosen frequencies. Currently, the combination of a LowPass and 
 HighPass filter by [biquad](https://docs.rs/biquad/0.4.1/biquad/)
 is being used to accomplish the desired effects.
 
+While running, the filters' frequencies can be modified by commands in the terminal:
+```
+l<Enter> --> reset the lowpass cutoff to 20khz
+l200<Enter> --> set the lowpass cutoff to 200hz
+l+400<Enter> --> increase the lowpass cutoff by 400hz
+l-150<Enter> --> decrease the lowpass cutoff by 150hz
+```
+All those work for the HighPass cutoff analogous with `h` as prefix.
+
+The program can be quit by entering `q<Enter>` or using Ctrl+C.
+
 
 ## Setup / Usage
 
