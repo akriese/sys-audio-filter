@@ -45,22 +45,35 @@ fn main() {
 
             let inp = get_input();
             let command = inp.as_bytes();
+            let mut val = -1.0;
             if command.len() > 0 {
-                let val = inp[1..].to_string().parse::<f32>().unwrap();
+                if command.len() > 1 {
+                    val = inp[1..].to_string().parse::<f32>().unwrap();
+                }
                 match command[0] as char {
                     'l' => {
-                        let old_val = cutoff_low;
-                        cutoff_low = match command[1] as char {
-                            '+' | '-' => (old_val + val).max(1.1),
-                            _ => val.max(1.1),
+                        cutoff_low = if val == -1.0 {
+                            20000.0
+                        }
+                        else {
+                            let old_val = cutoff_low;
+                            match command[1] as char {
+                                '+' | '-' => (old_val + val).max(1.1),
+                                _ => val.max(1.1),
+                            }
                         };
                         filter_box_cln.set_filter(cutoff_low, false);
                     },
                     'h' => {
-                        let old_val = cutoff_high;
-                        cutoff_high = match command[1] as char {
-                            '+' | '-' => (old_val + val).max(1.1),
-                            _ => val.max(1.1),
+                        cutoff_high = if val == -1.0 {
+                            1.1
+                        }
+                        else {
+                            let old_val = cutoff_high;
+                            match command[1] as char {
+                                '+' | '-' => (old_val + val).max(1.1),
+                                _ => val.max(1.1),
+                            }
                         };
                         filter_box_cln.set_filter(cutoff_high, true);
                     },
