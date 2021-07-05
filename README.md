@@ -16,7 +16,7 @@ l200<Enter> --> set the lowpass cutoff to 200hz
 l+400<Enter> --> increase the lowpass cutoff by 400hz
 l-150<Enter> --> decrease the lowpass cutoff by 150hz
 ```
-All those work for the HighPass cutoff analogous with `h` as prefix.
+All those commands work for the HighPass cutoff analogously for `h` as prefix.
 
 The program can be quit by entering `q<Enter>` or using Ctrl+C.
 
@@ -29,9 +29,9 @@ Generally,
 cargo run
 ```
 should suffice if you just want to use a microphone as input. If you want to pipe all your
-system's sound to the program you might want to install a virtual audio device such as the
+system's sound to the program, you might want to install a virtual audio device such as the
 [Virtual Audio Cable](https://vb-audio.com/Cable/). After installing such a device, you need to set the standard
-audio output of Windows to that device so that the sys-audio-filter can modify it.
+audio output of Windows to that device, so that the sys-audio-filter can modify it.
 
 
 ## Dependencies
@@ -40,7 +40,7 @@ audio output of Windows to that device so that the sys-audio-filter can modify i
 The usage of rodio and cpal requires the ALSA development files.
 
 ### Windows
-No further requirements except the optional virtual audio cable mentioned above.
+Optionally, install the virtual audio cable mentioned above.
 
 
 ## TODO:
