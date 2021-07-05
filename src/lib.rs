@@ -32,16 +32,8 @@ pub mod implementations {
         where
             R: Sample + Send + 'static, // idk why, but this only works with the 'static
         {
-            // create new source from data and stream configuration
-            //let source = InputStreamWrapper::new(data.to_vec(), in_conf);
-
-            // apparently, there already is an alternative for our Wrapper:
             let source = SamplesBuffer::new(channels, sample_rate, data);
-            //Source::low_pass(source, 1000);
             sink.append(source);
-
-            //This is an alternative, which has worse quality than using the sink
-            //stream_handle.play_raw(source).expect("Error while playbacking!");
         }
 
     impl CpalMgr {
