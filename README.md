@@ -37,7 +37,10 @@ audio output of Windows to that device, so that the sys-audio-filter can modify 
 ## Dependencies
 
 ### Linux
-The usage of rodio and cpal requires the ALSA development files.
+The usage of rodio and cpal requires the ALSA development files. You can install these with e.g.
+```
+sudo apt-get install -y libasound2-dev
+```
 
 ### Windows
 Optionally, install the virtual audio cable mentioned above.
