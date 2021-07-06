@@ -9,78 +9,85 @@ fn get_input() -> String {
     std::io::stdin()
         .read_line(&mut inp)
         .expect("Error reading terminal input!");
-    inp = inp.trim().to_string();
-    inp
+    inp.trim().to_string()
+}
+
+fn manage_box(filter_box: Arc<dyn FilterBox>) {
+    let min_freq = 10.0;
+
+    let mut cutoff_low = 20000.0;
+    let mut cutoff_high = min_freq;
+
+    loop {
+        if filter_box.is_finished() {
+            break;
+        }
+
+        let inp = get_input();
+        let command = inp.as_bytes();
+        let mut val = -1.0;
+        if command.len() > 0 {
+            if command.len() > 1 {
+                val = inp[1..].to_string().parse::<f32>().unwrap();
+            }
+            match command[0] as char {
+                'l' => {
+                    cutoff_low = if val == -1.0 {
+                        20000.0
+                    } else {
+                        let old_val = cutoff_low;
+                        match command[1] as char {
+                            '+' | '-' => (old_val + val).max(min_freq),
+                            _ => val.max(min_freq),
+                        }
+                    };
+                    filter_box.set_filter(cutoff_low, false);
+                }
+                'h' => {
+                    cutoff_high = if val == -1.0 {
+                        min_freq
+                    } else {
+                        let old_val = cutoff_high;
+                        match command[1] as char {
+                            '+' | '-' => (old_val + val).max(min_freq),
+                            _ => val.max(min_freq),
+                        }
+                    };
+                    filter_box.set_filter(cutoff_high, true);
+                }
+                //'v' => {
+                //filter_box_cln.sink.set_volume(volume);
+                //volume = match command[1] as char {
+                //'+' | '-' => (volume + val).max(0.0),
+                //_ => val.max(0.0),
+                //};
+                //sink.set_volume(volume);
+                //}
+                'q' => {
+                    filter_box.finish();
+                    break;
+                }
+                _ => {}
+            };
+            println!(
+                "You can hear frequencies between {}hz (highpass freq) and {}hz (lowpass freq)",
+                cutoff_high, cutoff_low
+            );
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
 }
 
 fn main() {
     #[cfg(target_os = "windows")]
     let filter_box = Arc::new(CpalMgr::new().unwrap());
+    #[cfg(target_os = "linux")]
+    let filter_box = Arc::new(PaMgr::new());
+
     let filter_box_cln = filter_box.clone();
 
-    let min_freq = 10.0;
-
-    thread::spawn(move || {
-        let mut cutoff_low = 20000.0;
-        let mut cutoff_high = min_freq;
-
-        loop {
-            if filter_box_cln.is_finished() {
-                break;
-            }
-
-            let inp = get_input();
-            let command = inp.as_bytes();
-            let mut val = -1.0;
-            if command.len() > 0 {
-                if command.len() > 1 {
-                    val = inp[1..].to_string().parse::<f32>().unwrap();
-                }
-                match command[0] as char {
-                    'l' => {
-                        cutoff_low = if val == -1.0 {
-                            20000.0
-                        } else {
-                            let old_val = cutoff_low;
-                            match command[1] as char {
-                                '+' | '-' => (old_val + val).max(min_freq),
-                                _ => val.max(min_freq),
-                            }
-                        };
-                        filter_box_cln.set_filter(cutoff_low, false);
-                    }
-                    'h' => {
-                        cutoff_high = if val == -1.0 {
-                            min_freq
-                        } else {
-                            let old_val = cutoff_high;
-                            match command[1] as char {
-                                '+' | '-' => (old_val + val).max(min_freq),
-                                _ => val.max(min_freq),
-                            }
-                        };
-                        filter_box_cln.set_filter(cutoff_high, true);
-                    }
-                    //'v' => {
-                    //filter_box_cln.sink.set_volume(volume);
-                    //volume = match command[1] as char {
-                    //'+' | '-' => (volume + val).max(0.0),
-                    //_ => val.max(0.0),
-                    //};
-                    //sink.set_volume(volume);
-                    //}
-                    'q' => {
-                        filter_box_cln.finish();
-                        break;
-                    }
-                    _ => {}
-                };
-                println!("You can hear frequencies between {}hz (highpass freq) and {}hz (lowpass freq)", cutoff_high, cutoff_low);
-            }
-
-            std::thread::sleep(std::time::Duration::from_millis(20));
-        }
-    });
+    thread::spawn(move || manage_box(filter_box_cln));
 
     //filter_box.init().expect("Error initiating the box!");
 
