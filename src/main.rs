@@ -18,9 +18,12 @@ fn main() {
     let filter_box = Arc::new(CpalMgr::new().unwrap());
     let filter_box_cln = filter_box.clone();
 
+    let min_freq = 10.0;
+
     thread::spawn(move || {
         let mut cutoff_low = 20000.0;
-        let mut cutoff_high = 2.0;
+        let mut cutoff_high = min_freq;
+
         loop {
             if filter_box_cln.is_finished() {
                 break;
@@ -40,20 +43,20 @@ fn main() {
                         } else {
                             let old_val = cutoff_low;
                             match command[1] as char {
-                                '+' | '-' => (old_val + val).max(1.1),
-                                _ => val.max(1.1),
+                                '+' | '-' => (old_val + val).max(min_freq),
+                                _ => val.max(min_freq),
                             }
                         };
                         filter_box_cln.set_filter(cutoff_low, false);
                     }
                     'h' => {
                         cutoff_high = if val == -1.0 {
-                            1.1
+                            min_freq
                         } else {
                             let old_val = cutoff_high;
                             match command[1] as char {
-                                '+' | '-' => (old_val + val).max(1.1),
-                                _ => val.max(1.1),
+                                '+' | '-' => (old_val + val).max(min_freq),
+                                _ => val.max(min_freq),
                             }
                         };
                         filter_box_cln.set_filter(cutoff_high, true);
@@ -72,7 +75,7 @@ fn main() {
                     }
                     _ => {}
                 };
-                println!("Low: {}, High: {}", cutoff_low, cutoff_high);
+                println!("You can hear frequencies between {}hz (highpass freq) and {}hz (lowpass freq)", cutoff_high, cutoff_low);
             }
 
             std::thread::sleep(std::time::Duration::from_millis(20));
