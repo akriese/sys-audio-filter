@@ -133,27 +133,7 @@ pub mod implementations {
 
     impl FilterBox for CpalMgr {
         fn init(&mut self) -> Result<(), anyhow::Error> {
-            let host = cpal::default_host();
-            self.input_device = host
-                .input_devices()?
-                .find(|x| {
-                    x.name()
-                        .map(|y| y == "CABLE Output (VB-Audio Virtual Cable)")
-                        .unwrap_or(false)
-                })
-                .expect("Failed to find input device!");
-
-            self.output_device = host
-                .output_devices()?
-                .find(|x| {
-                    x.name()
-                        .map(|y| y == "Lautsprecher (Realtek(R) Audio)")
-                        .unwrap_or(false)
-                })
-                .expect("Failed to find input device!");
-
-            self.is_finished = Arc::new(AtomicBool::new(false));
-
+            //everything important is being done in new()
             Result::Ok(())
         }
 
