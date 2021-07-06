@@ -8,8 +8,8 @@ pub mod implementations {
         Type::{HighPass, LowPass},
     };
     use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-    use cpal::SampleFormat;
-    use rodio::{buffer::SamplesBuffer, OutputStream, Sample, Sink};
+    use cpal::{Sample, SampleFormat};
+    use rodio::{buffer::SamplesBuffer, OutputStream, Sink};
     use std::io::{stdin, stdout, Write};
     use std::sync::{
         atomic::{AtomicBool, Ordering},
@@ -34,14 +34,6 @@ pub mod implementations {
         low_pass: Arc<Mutex<DirectForm1<f32>>>,
         high_pass: Arc<Mutex<DirectForm1<f32>>>,
         is_finished: Arc<AtomicBool>,
-    }
-
-    fn put_to_sink<R>(data: &[R], sink: &Arc<Sink>, channels: u16, sample_rate: u32)
-    where
-        R: Sample + Send + 'static, // idk why, but this only works with the 'static
-    {
-        let source = SamplesBuffer::new(channels, sample_rate, data);
-        sink.append(source);
     }
 
     impl CpalMgr {
@@ -131,6 +123,12 @@ pub mod implementations {
         }
     }
 
+    fn apply_filter(data: &mut Vec<f32>, filter: &Arc<Mutex<DirectForm1<f32>>>) {
+        for x in data.iter_mut() {
+            *x = filter.lock().unwrap().run(*x);
+        }
+    }
+
     impl FilterBox for CpalMgr {
         fn init(&mut self) -> Result<(), anyhow::Error> {
             //everything important is being done in new()
@@ -153,32 +151,42 @@ pub mod implementations {
                 SampleFormat::F32 => self.input_device.build_input_stream(
                     &self.in_cfg.clone().into(),
                     move |data: &[f32], _: &cpal::InputCallbackInfo| {
-                        let filtered_data: Vec<f32> = data
-                            .iter()
-                            .map(|x| low_pass_cpy.lock().unwrap().run(*x))
-                            .collect();
-                        let filtered_data: Vec<f32> = filtered_data
-                            .iter()
-                            .map(|x| high_pass_cpy.lock().unwrap().run(*x))
-                            .collect();
+                        let mut filtered_data = data.to_vec();
+                        apply_filter(&mut filtered_data, &low_pass_cpy);
+                        apply_filter(&mut filtered_data, &high_pass_cpy);
                         let source =
                             SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                         sink_clone.append(source);
-                        //put_to_sink::<f32>(data, &sink_clone, in_conf.channels, in_conf.sample_rate);
                     },
                     err_fn,
                 ),
                 SampleFormat::I16 => self.input_device.build_input_stream(
                     &self.in_cfg.clone().into(),
                     move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                        put_to_sink::<i16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
+                        let mut filtered_data: Vec<f32> =
+                            data.iter().map(|x| (*x).to_f32()).collect();
+                        apply_filter(&mut filtered_data, &low_pass_cpy);
+                        apply_filter(&mut filtered_data, &high_pass_cpy);
+                        let filtered_data: Vec<i16> =
+                            filtered_data.iter().map(|x| (*x).to_i16()).collect();
+                        let source =
+                            SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
+                        sink_clone.append(source);
                     },
                     err_fn,
                 ),
                 SampleFormat::U16 => self.input_device.build_input_stream(
                     &self.in_cfg.clone().into(),
                     move |data: &[u16], _: &cpal::InputCallbackInfo| {
-                        put_to_sink::<u16>(data, &sink_clone, channels_cpy, sample_rate_cpy);
+                        let mut filtered_data: Vec<f32> =
+                            data.iter().map(|x| (*x).to_f32()).collect();
+                        apply_filter(&mut filtered_data, &low_pass_cpy);
+                        apply_filter(&mut filtered_data, &high_pass_cpy);
+                        let filtered_data: Vec<u16> =
+                            filtered_data.iter().map(|x| (*x).to_u16()).collect();
+                        let source =
+                            SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
+                        sink_clone.append(source);
                     },
                     err_fn,
                 ),
