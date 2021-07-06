@@ -24,6 +24,12 @@ pub mod implementations {
         fn finish(&self);
     }
 
+    fn apply_filter(data: &mut Vec<f32>, filter: &Arc<Mutex<DirectForm1<f32>>>) {
+        for x in data.iter_mut() {
+            *x = filter.lock().unwrap().run(*x);
+        }
+    }
+
     pub struct CpalMgr {
         input_device: cpal::Device,
         output_device: cpal::Device,
@@ -123,12 +129,6 @@ pub mod implementations {
         }
     }
 
-    fn apply_filter(data: &mut Vec<f32>, filter: &Arc<Mutex<DirectForm1<f32>>>) {
-        for x in data.iter_mut() {
-            *x = filter.lock().unwrap().run(*x);
-        }
-    }
-
     impl FilterBox for CpalMgr {
         fn init(&mut self) -> Result<(), anyhow::Error> {
             //everything important is being done in new()
@@ -203,7 +203,6 @@ pub mod implementations {
 
             // start playback
             in_stream.play()?;
-            //self.sink.sleep_until_end();
             sink.sleep_until_end();
             loop {
                 if self.is_finished.load(Ordering::Relaxed) {
