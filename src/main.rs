@@ -44,7 +44,7 @@ fn main() {
         None                 // Use default buffering attributes
     ).unwrap();
     
-    let cutoff_freq = (600.0).hz();
+    let cutoff_freq = (200.0).hz();
     let sampling_freq = (44100.0).hz();
 
     let coeffs = Coefficients::<f32>::from_params(Type::LowPass, sampling_freq, cutoff_freq, Q_BUTTERWORTH_F32).unwrap();
@@ -52,36 +52,33 @@ fn main() {
     let mut biquad = DirectForm1::<f32>::new(coeffs);
     
     while true {
-        /*
-        let mut buffer1: [u8; 320000] = [0; 320000]; // length has to be a multiple of 4
+        
+        let mut buffer1: [u8; 4] = [0; 4]; // length has to be a multiple of 4
         s1.read(&mut buffer1).unwrap();
 
         let mut input_vec = Vec::new(); 
-        for i in (0..buffer1.len()-1).step_by(2) {
+        for i in (0..buffer1.len()).step_by(2) {
             let two_bytes: [u8; 2] = [buffer1[i], buffer1[i+1]];
-            let sample = u16::from_ne_bytes(two_bytes);
+            let sample = i16::from_ne_bytes(two_bytes);
             let float_sample = sample.to_f32();
             input_vec.push(float_sample);
         }
-        */
-
 
         let mut output_vec = Vec::new();
         
         for elem in input_vec {
-            output_vec.push(biquad.run(elem).to_u16());
+            output_vec.push(biquad.run(elem).to_i16());
             // output_vec.push(elem.to_u16());
         }
         
-        let mut buffer2: [u8; 320000] = [0; 320000];
+        let mut buffer2: [u8; 4] = [0; 4];
         for i in (0..output_vec.len()) {
-            let two_bytes: [u8; 2] = u16::to_ne_bytes(output_vec[i]);
+            let two_bytes: [u8; 2] = i16::to_ne_bytes(output_vec[i]);
             buffer2[2*i] = two_bytes[0];
             buffer2[2*i + 1] = two_bytes[1];
         }
         
         s2.write(&buffer2[..]).unwrap();
-        biquad.reset_state();
     }
     
     
