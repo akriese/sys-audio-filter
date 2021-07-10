@@ -2,6 +2,7 @@ extern crate anyhow;
 extern crate cpal;
 use std::sync::Arc;
 use std::thread;
+use std::process::Command;
 pub use sys_audio_filter::implementations::{PaMgr,CpalMgr, FilterBox};
 
 fn get_input() -> String {
@@ -89,7 +90,13 @@ fn main() {
 
     thread::spawn(move || manage_box(filter_box_cln));
 
-    //filter_box.init().expect("Error initiating the box!");
-
     filter_box.play().expect("Error playing the sound!");
+
+    #[cfg(target_os = "linux")]
+    let output = Command::new("pactl")
+                     .arg("unload-module")
+                     .arg("module-null-sink")
+                     .output()
+                     .expect("Failed to execute command");
+
 }

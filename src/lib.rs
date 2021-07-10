@@ -19,9 +19,9 @@ pub mod implementations {
     use pulse::stream::Direction;
     use pulse::sample::{Spec, Format};
     use psimple::Simple;
+    use std::process::Command;
 
     pub trait FilterBox {
-        fn init(&mut self) -> Result<(), anyhow::Error>;
         fn play(&self) -> Result<(), anyhow::Error>;
         fn set_filter(&self, freq: f32, target_high_pass: bool);
         fn is_finished(&self) -> bool;
@@ -134,11 +134,6 @@ pub mod implementations {
     }
 
     impl FilterBox for CpalMgr {
-        fn init(&mut self) -> Result<(), anyhow::Error> {
-            //everything important is being done in new()
-            Result::Ok(())
-        }
-
         fn play(&self) -> Result<(), anyhow::Error> {
             let (_stream, stream_handle) = OutputStream::try_from_device(&self.output_device)?;
 
@@ -262,6 +257,14 @@ pub mod implementations {
 
     impl PaMgr {
        pub fn new() -> Result <PaMgr, anyhow::Error> {
+           
+            let output = Command::new("pactl")
+                     .arg("load-module")
+                     .arg("module-null-sink")
+                     .arg("sink_name=test")
+                     .output()
+                     .expect("Failed to execute command"); 
+
             let is_finished = Arc::new(AtomicBool::new(false));
 
             let spec = Spec {
@@ -298,12 +301,13 @@ pub mod implementations {
                 None                 // Use default buffering attributes
             ).unwrap();
 
-            let cutoff_freq = 200.0;
+            let cutoff_freq1 = 20000.0;
+            let cutoff_freq2 = 10.0;
             let sampling_freq = spec.rate as f32;
 
-            let coeffs1 = Coefficients::<f32>::from_params(LowPass, sampling_freq.hz(), cutoff_freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+            let coeffs1 = Coefficients::<f32>::from_params(LowPass, sampling_freq.hz(), cutoff_freq1.hz(), Q_BUTTERWORTH_F32).unwrap();
 
-            let coeffs2 = Coefficients::<f32>::from_params(HighPass, sampling_freq.hz(), cutoff_freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+            let coeffs2 = Coefficients::<f32>::from_params(HighPass, sampling_freq.hz(), cutoff_freq2.hz(), Q_BUTTERWORTH_F32).unwrap();
 
             let low_pass = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs1)));
             let high_pass = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs2)));
@@ -321,15 +325,8 @@ pub mod implementations {
     }
 
     impl FilterBox for PaMgr {
-        fn init(&mut self) -> Result<(), anyhow::Error> {
-            //everything important is being done in new()
-            Result::Ok(())
-        }
-       
         fn play(&self) -> Result<(), anyhow::Error> {
-            while true {
-        
-                println!("Playing!");
+            while !self.is_finished() {
                 let mut buffer1: [u8; 4] = [0; 4]; // length has to be a multiple of 4
                 self.source.read(&mut buffer1).unwrap();
 
