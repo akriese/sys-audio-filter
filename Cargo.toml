@@ -12,3 +12,5 @@ rodio = "0.13.1"
 anyhow = "1.0.40"
 ctrlc = "3.1.9"
 biquad = "0.4.1"
+psimple = { version = "2.23.0", package = "libpulse-simple-binding" }
+pulse = { version = "2.23.0", package = "libpulse-binding" }

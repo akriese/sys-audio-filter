@@ -16,6 +16,10 @@ pub mod implementations {
         Arc, Mutex,
     };
 
+    use pulse::stream::Direction;
+    use pulse::sample::{Spec, Format};
+    use psimple::Simple;
+
     pub trait FilterBox {
         fn init(&mut self) -> Result<(), anyhow::Error>;
         fn play(&self) -> Result<(), anyhow::Error>;
@@ -246,4 +250,136 @@ pub mod implementations {
             self.is_finished.store(true, Ordering::Relaxed);
         }
     }
+
+    pub struct PaMgr {
+        spec:  Spec,
+        source: Simple,
+        sink: Simple,
+        low_pass: Arc<Mutex<DirectForm1<f32>>>, 
+        high_pass: Arc<Mutex<DirectForm1<f32>>>,
+        is_finished: Arc<AtomicBool>,
+    }
+
+    impl PaMgr {
+       pub fn new() -> Result <PaMgr, anyhow::Error> {
+            let is_finished = Arc::new(AtomicBool::new(false));
+
+            let spec = Spec {
+                format: Format::S16NE,
+                channels: 2,
+                rate: 44100,
+            };
+
+            assert!(spec.is_valid()); 
+            
+            let input_device = "test.monitor";
+
+            let source = Simple::new(
+                None,                // Use the default server
+                "FooApp",            // Our application’s name
+                Direction::Record, // We want a stream for recording
+                Some(&input_device),
+                "Music",             // Description of our stream
+                &spec,               // Our sample format
+                None,                // Use default channel map
+                None                 // Use default buffering attributes
+            ).unwrap();
+            
+            let output_device = "alsa_output.pci-0000_00_1b.0.analog-stereo";
+
+            let sink = Simple::new(
+                None,                // Use the default server
+                "FooApp",            // Our application’s name
+                Direction::Playback, // We want a playback stream
+                Some(&output_device),            
+                "Music",             // Description of our stream
+                &spec,               // Our sample format
+                None,                // Use default channel map
+                None                 // Use default buffering attributes
+            ).unwrap();
+
+            let cutoff_freq = 200.0;
+            let sampling_freq = spec.rate as f32;
+
+            let coeffs1 = Coefficients::<f32>::from_params(LowPass, sampling_freq.hz(), cutoff_freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+
+            let coeffs2 = Coefficients::<f32>::from_params(HighPass, sampling_freq.hz(), cutoff_freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+
+            let low_pass = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs1)));
+            let high_pass = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs2)));
+
+            Result::Ok(PaMgr {
+                spec,
+                source,
+                sink,
+                low_pass, 
+                high_pass,
+                is_finished,
+            })
+
+       }
+    }
+
+    impl FilterBox for PaMgr {
+        fn init(&mut self) -> Result<(), anyhow::Error> {
+            //everything important is being done in new()
+            Result::Ok(())
+        }
+       
+        fn play(&self) -> Result<(), anyhow::Error> {
+            while true {
+        
+                println!("Playing!");
+                let mut buffer1: [u8; 4] = [0; 4]; // length has to be a multiple of 4
+                self.source.read(&mut buffer1).unwrap();
+
+                let mut input_vec = Vec::new(); 
+                for i in (0..buffer1.len()).step_by(2) {
+                    let two_bytes: [u8; 2] = [buffer1[i], buffer1[i+1]];
+                    let sample = i16::from_ne_bytes(two_bytes);
+                    let float_sample = sample.to_f32();
+                    input_vec.push(float_sample);
+                }
+
+                let mut output_vec = Vec::new();
+                
+                for elem in input_vec {
+                    output_vec.push(self.low_pass.lock().unwrap().run(self.high_pass.lock().unwrap().run(elem)).to_i16());
+                }
+                
+                let mut buffer2: [u8; 4] = [0; 4];
+                for i in (0..output_vec.len()) {
+                    let two_bytes: [u8; 2] = i16::to_ne_bytes(output_vec[i]);
+                    buffer2[2*i] = two_bytes[0];
+                    buffer2[2*i + 1] = two_bytes[1];
+                }
+                
+                self.sink.write(&buffer2[..]).unwrap();
+            } 
+
+            Ok(())
+            
+        }
+
+        fn set_filter(&self, freq: f32, target_high_pass: bool) {
+            let sampling_freq = self.spec.rate as f32;
+            if target_high_pass {
+                let coeffs = Coefficients::<f32>::from_params(HighPass, sampling_freq.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+                self.high_pass.lock().unwrap().update_coefficients(coeffs);
+            } else {
+                let coeffs = Coefficients::<f32>::from_params(LowPass, sampling_freq.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+                self.low_pass.lock().unwrap().update_coefficients(coeffs);
+            }
+        }
+
+        fn is_finished(&self) -> bool {
+            self.is_finished.load(Ordering::Relaxed)
+        }
+
+        fn finish(&self) {
+            self.is_finished.store(true,Ordering::Relaxed);  
+        }
+
+    }
+
 }

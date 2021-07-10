@@ -2,7 +2,7 @@ extern crate anyhow;
 extern crate cpal;
 use std::sync::Arc;
 use std::thread;
-pub use sys_audio_filter::implementations::{CpalMgr, FilterBox};
+pub use sys_audio_filter::implementations::{PaMgr,CpalMgr, FilterBox};
 
 fn get_input() -> String {
     let mut inp = String::new();
@@ -83,7 +83,7 @@ fn main() {
     #[cfg(target_os = "windows")]
     let filter_box = Arc::new(CpalMgr::new().unwrap());
     #[cfg(target_os = "linux")]
-    let filter_box = Arc::new(PaMgr::new());
+    let filter_box = Arc::new(PaMgr::new().unwrap());
 
     let filter_box_cln = filter_box.clone();
 
