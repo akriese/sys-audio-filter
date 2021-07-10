@@ -53,13 +53,13 @@ Optionally, install the virtual audio cable mentioned above.
 - [x] Receive system audio and send it back to output
 - [x] Suppress system audio to prevent double output
 - [x] Access system audio on multiple platforms
-- [x] Manipulate stream's master volume
-- [ ] Manipulate chosen frequencies
-- [ ] Convert between different sample rates
+- [ ] Manipulate stream's master volume
+- [x] Manipulate chosen frequencies
+- [ ] Convert between different sample rates (needed?)
 - [ ] Command Line interface
-  - [ ] Enumerate all available devices and let the user choose input and output
-  - [ ] Record into file
-- [ ] GUI interface
+  - [ ] Enumerate all available devices and let the user choose input and output (not on linux)
+  - [ ] Record into file (skipped feature)
+- [ ] GUI interface (not done)
   - [ ] Live output graph of frequencies
   - [ ] Drag filters in graph
 

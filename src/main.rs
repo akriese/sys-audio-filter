@@ -56,14 +56,12 @@ fn manage_box(filter_box: Arc<dyn FilterBox>) {
                     };
                     filter_box.set_filter(cutoff_high, true);
                 }
-                //'v' => {
-                //filter_box_cln.sink.set_volume(volume);
-                //volume = match command[1] as char {
-                //'+' | '-' => (volume + val).max(0.0),
-                //_ => val.max(0.0),
-                //};
-                //sink.set_volume(volume);
-                //}
+                /*
+                'v' => {
+                    let volume: u16 = command[1] as u16;
+                    filter_box.set_volume(volume);
+                }
+                */
                 'q' => {
                     filter_box.finish();
                     break;
@@ -91,12 +89,4 @@ fn main() {
     thread::spawn(move || manage_box(filter_box_cln));
 
     filter_box.play().expect("Error playing the sound!");
-
-    #[cfg(target_os = "linux")]
-    let output = Command::new("pactl")
-                     .arg("unload-module")
-                     .arg("module-null-sink")
-                     .output()
-                     .expect("Failed to execute command");
-
 }

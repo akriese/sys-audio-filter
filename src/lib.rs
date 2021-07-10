@@ -26,6 +26,7 @@ pub mod implementations {
         fn set_filter(&self, freq: f32, target_high_pass: bool);
         fn is_finished(&self) -> bool;
         fn finish(&self);
+        fn set_volume(&self, factor: u16);
     }
 
     fn apply_filter(data: &mut Vec<f32>, filter: &Arc<Mutex<DirectForm1<f32>>>) {
@@ -47,6 +48,7 @@ pub mod implementations {
     }
 
     impl CpalMgr {
+        
         pub fn new() -> Result<CpalMgr, anyhow::Error> {
             let host = cpal::default_host();
             let (input_device, output_device) = CpalMgr::choose_input_output(&host).unwrap();
@@ -134,6 +136,10 @@ pub mod implementations {
     }
 
     impl FilterBox for CpalMgr {
+        fn set_volume(&self, factor: u16) {
+            println!("Yo {}", factor);
+        }
+
         fn play(&self) -> Result<(), anyhow::Error> {
             let (_stream, stream_handle) = OutputStream::try_from_device(&self.output_device)?;
 
@@ -250,6 +256,7 @@ pub mod implementations {
         spec:  Spec,
         source: Simple,
         sink: Simple,
+        output_device: String,
         low_pass: Arc<Mutex<DirectForm1<f32>>>, 
         high_pass: Arc<Mutex<DirectForm1<f32>>>,
         is_finished: Arc<AtomicBool>,
@@ -258,7 +265,7 @@ pub mod implementations {
     impl PaMgr {
        pub fn new() -> Result <PaMgr, anyhow::Error> {
            
-            let output = Command::new("pactl")
+            let _output = Command::new("pactl")
                      .arg("load-module")
                      .arg("module-null-sink")
                      .arg("sink_name=test")
@@ -288,7 +295,7 @@ pub mod implementations {
                 None                 // Use default buffering attributes
             ).unwrap();
             
-            let output_device = "alsa_output.pci-0000_00_1b.0.analog-stereo";
+            let output_device = "alsa_output.pci-0000_00_1b.0.analog-stereo".to_string();
 
             let sink = Simple::new(
                 None,                // Use the default server
@@ -316,6 +323,7 @@ pub mod implementations {
                 spec,
                 source,
                 sink,
+                output_device,
                 low_pass, 
                 high_pass,
                 is_finished,
@@ -324,7 +332,32 @@ pub mod implementations {
        }
     }
 
+    impl Drop for PaMgr {
+        fn drop(&mut self) {
+           let _output = Command::new("pactl")
+                     .arg("unload-module")
+                     .arg("module-null-sink")
+                     .output()
+                     .expect("Failed to execute command");
+        }
+    }
+
     impl FilterBox for PaMgr {
+
+        fn set_volume(&self, factor: u16) {
+            let mut owned_string: String = factor.to_string();
+            let borrowed_string: &str = "%";
+
+            owned_string.push_str(borrowed_string);
+
+            let _output = Command::new("pactl")
+                     .arg("set-sink-volume")
+                     .arg(&self.output_device)
+                     .arg(owned_string)
+                     .output()
+                     .expect("Failed to execute command"); 
+        }
+
         fn play(&self) -> Result<(), anyhow::Error> {
             while !self.is_finished() {
                 let mut buffer1: [u8; 4] = [0; 4]; // length has to be a multiple of 4
@@ -345,7 +378,7 @@ pub mod implementations {
                 }
                 
                 let mut buffer2: [u8; 4] = [0; 4];
-                for i in (0..output_vec.len()) {
+                for i in 0..output_vec.len() {
                     let two_bytes: [u8; 2] = i16::to_ne_bytes(output_vec[i]);
                     buffer2[2*i] = two_bytes[0];
                     buffer2[2*i + 1] = two_bytes[1];
