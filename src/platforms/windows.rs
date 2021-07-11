@@ -175,19 +175,11 @@ impl FilterBox for CpalMgr {
         }
         .unwrap();
 
-        // use Ctrl+C handler to interrupt infinite sleeping loop
-        let is_finished_cln = self.is_finished.clone();
-        ctrlc::set_handler(move || {
-            is_finished_cln.store(true, Ordering::Relaxed);
-            println!("Keyboard Interrupt received!");
-        })
-        .expect("Error setting Ctrl+C handler");
-
         // start playback
         in_stream.play()?;
         sink.sleep_until_end();
         loop {
-            if self.is_finished.load(Ordering::Relaxed) {
+            if self.is_finished() {
                 break;
             }
             std::thread::sleep(std::time::Duration::from_millis(200));

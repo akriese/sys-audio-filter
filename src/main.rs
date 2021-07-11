@@ -21,11 +21,20 @@ fn get_input() -> String {
 fn manage_box(filter_box: Arc<Manager>) {
     let min_freq = 10.0;
 
+    // use Ctrl+C handler to interrupt infinite sleeping loop
+    let ctrl_c_clone = filter_box.clone();
+    ctrlc::set_handler(move || {
+        ctrl_c_clone.finish();
+        println!("Keyboard Interrupt received!");
+    })
+    .expect("Error setting Ctrl+C handler");
+
     let mut cutoff_low = 20000.0;
     let mut cutoff_high = min_freq;
 
     loop {
         if filter_box.is_finished() {
+            println!("Ending program...");
             break;
         }
 
@@ -69,7 +78,7 @@ fn manage_box(filter_box: Arc<Manager>) {
                 */
                 'q' => {
                     filter_box.finish();
-                    break;
+                    continue;
                 }
                 _ => {}
             };
