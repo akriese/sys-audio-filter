@@ -6,10 +6,7 @@ use biquad::{
     Biquad, Coefficients, DirectForm1,
     Type::{HighPass, LowPass},
 };
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{Sample, SampleFormat};
-use rodio::{buffer::SamplesBuffer, OutputStream, Sink};
-use std::io::{stdin, stdout, Write};
+use cpal::Sample;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
