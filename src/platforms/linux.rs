@@ -11,15 +11,15 @@ use std::sync::{
     Arc, Mutex,
 };
 
-use pulse::stream::Direction;
-use pulse::sample::{Spec, Format};
 use psimple::Simple;
+use pulse::sample::{Format, Spec};
+use pulse::stream::Direction;
 use std::process::Command;
 
 use crate::platforms::FilterBox;
 
 pub struct PaMgr {
-    spec:  Spec,
+    spec: Spec,
     source: Simple,
     sink: Simple,
     output_device: String,
@@ -29,14 +29,13 @@ pub struct PaMgr {
 }
 
 impl PaMgr {
-   pub fn new() -> Result <PaMgr, anyhow::Error> {
-
+    pub fn new() -> Result<PaMgr, anyhow::Error> {
         let _output = Command::new("pactl")
-                 .arg("load-module")
-                 .arg("module-null-sink")
-                 .arg("sink_name=test")
-                 .output()
-                 .expect("Failed to execute command");
+            .arg("load-module")
+            .arg("module-null-sink")
+            .arg("sink_name=test")
+            .output()
+            .expect("Failed to execute command");
 
         let is_finished = Arc::new(AtomicBool::new(false));
 
@@ -51,15 +50,16 @@ impl PaMgr {
         let input_device = "test.monitor";
 
         let source = Simple::new(
-            None,                // Use the default server
-            "FooApp",            // Our application’s name
+            None,              // Use the default server
+            "FooApp",          // Our application’s name
             Direction::Record, // We want a stream for recording
             Some(&input_device),
-            "Music",             // Description of our stream
-            &spec,               // Our sample format
-            None,                // Use default channel map
-            None                 // Use default buffering attributes
-        ).unwrap();
+            "Music", // Description of our stream
+            &spec,   // Our sample format
+            None,    // Use default channel map
+            None,    // Use default buffering attributes
+        )
+        .unwrap();
 
         let output_device = "alsa_output.pci-0000_00_1b.0.analog-stereo".to_string();
 
@@ -68,19 +68,31 @@ impl PaMgr {
             "FooApp",            // Our application’s name
             Direction::Playback, // We want a playback stream
             Some(&output_device),
-            "Music",             // Description of our stream
-            &spec,               // Our sample format
-            None,                // Use default channel map
-            None                 // Use default buffering attributes
-        ).unwrap();
+            "Music", // Description of our stream
+            &spec,   // Our sample format
+            None,    // Use default channel map
+            None,    // Use default buffering attributes
+        )
+        .unwrap();
 
         let cutoff_freq1 = 20000.0;
         let cutoff_freq2 = 10.0;
         let sampling_freq = spec.rate as f32;
 
-        let coeffs1 = Coefficients::<f32>::from_params(LowPass, sampling_freq.hz(), cutoff_freq1.hz(), Q_BUTTERWORTH_F32).unwrap();
-
-        let coeffs2 = Coefficients::<f32>::from_params(HighPass, sampling_freq.hz(), cutoff_freq2.hz(), Q_BUTTERWORTH_F32).unwrap();
+        let coeffs1 = Coefficients::<f32>::from_params(
+            LowPass,
+            sampling_freq.hz(),
+            cutoff_freq1.hz(),
+            Q_BUTTERWORTH_F32,
+        )
+        .unwrap();
+        let coeffs2 = Coefficients::<f32>::from_params(
+            HighPass,
+            sampling_freq.hz(),
+            cutoff_freq2.hz(),
+            Q_BUTTERWORTH_F32,
+        )
+        .unwrap();
 
         let low_pass = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs1)));
         let high_pass = Arc::new(Mutex::new(DirectForm1::<f32>::new(coeffs2)));
@@ -94,22 +106,20 @@ impl PaMgr {
             high_pass,
             is_finished,
         })
-
-   }
+    }
 }
 
 impl Drop for PaMgr {
     fn drop(&mut self) {
-       let _output = Command::new("pactl")
-                 .arg("unload-module")
-                 .arg("module-null-sink")
-                 .output()
-                 .expect("Failed to execute command");
+        let _output = Command::new("pactl")
+            .arg("unload-module")
+            .arg("module-null-sink")
+            .output()
+            .expect("Failed to execute command");
     }
 }
 
 impl FilterBox for PaMgr {
-
     fn set_volume(&self, factor: u16) {
         let mut owned_string: String = factor.to_string();
         let borrowed_string: &str = "%";
@@ -117,11 +127,11 @@ impl FilterBox for PaMgr {
         owned_string.push_str(borrowed_string);
 
         let _output = Command::new("pactl")
-                 .arg("set-sink-volume")
-                 .arg(&self.output_device)
-                 .arg(owned_string)
-                 .output()
-                 .expect("Failed to execute command");
+            .arg("set-sink-volume")
+            .arg(&self.output_device)
+            .arg(owned_string)
+            .output()
+            .expect("Failed to execute command");
     }
 
     fn play(&self) -> Result<(), anyhow::Error> {
@@ -131,7 +141,7 @@ impl FilterBox for PaMgr {
 
             let mut input_vec = Vec::new();
             for i in (0..buffer1.len()).step_by(2) {
-                let two_bytes: [u8; 2] = [buffer1[i], buffer1[i+1]];
+                let two_bytes: [u8; 2] = [buffer1[i], buffer1[i + 1]];
                 let sample = i16::from_ne_bytes(two_bytes);
                 let float_sample = sample.to_f32();
                 input_vec.push(float_sample);
@@ -140,30 +150,47 @@ impl FilterBox for PaMgr {
             let mut output_vec = Vec::new();
 
             for elem in input_vec {
-                output_vec.push(self.low_pass.lock().unwrap().run(self.high_pass.lock().unwrap().run(elem)).to_i16());
+                output_vec.push(
+                    self.low_pass
+                        .lock()
+                        .unwrap()
+                        .run(self.high_pass.lock().unwrap().run(elem))
+                        .to_i16(),
+                );
             }
 
             let mut buffer2: [u8; 32] = [0; 32];
             for i in 0..output_vec.len() {
                 let two_bytes: [u8; 2] = i16::to_ne_bytes(output_vec[i]);
-                buffer2[2*i] = two_bytes[0];
-                buffer2[2*i + 1] = two_bytes[1];
+                buffer2[2 * i] = two_bytes[0];
+                buffer2[2 * i + 1] = two_bytes[1];
             }
 
             self.sink.write(&buffer2[..]).unwrap();
         }
 
         Ok(())
-
     }
 
     fn set_filter(&self, freq: f32, target_high_pass: bool) {
         let sampling_freq = self.spec.rate as f32;
         if target_high_pass {
-            let coeffs = Coefficients::<f32>::from_params(HighPass, sampling_freq.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+            let coeffs = Coefficients::<f32>::from_params(
+                HighPass,
+                sampling_freq.hz(),
+                freq.hz(),
+                Q_BUTTERWORTH_F32,
+            )
+            .unwrap();
             self.high_pass.lock().unwrap().update_coefficients(coeffs);
         } else {
-            let coeffs = Coefficients::<f32>::from_params(LowPass, sampling_freq.hz(), freq.hz(), Q_BUTTERWORTH_F32).unwrap();
+            let coeffs = Coefficients::<f32>::from_params(
+                LowPass,
+                sampling_freq.hz(),
+                freq.hz(),
+                Q_BUTTERWORTH_F32,
+            )
+            .unwrap();
             self.low_pass.lock().unwrap().update_coefficients(coeffs);
         }
     }
@@ -173,6 +200,6 @@ impl FilterBox for PaMgr {
     }
 
     fn finish(&self) {
-        self.is_finished.store(true,Ordering::Relaxed);
+        self.is_finished.store(true, Ordering::Relaxed);
     }
 }

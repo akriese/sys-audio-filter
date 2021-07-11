@@ -1,3 +1,4 @@
+use crate::platforms::FilterBox;
 use anyhow;
 use biquad::Q_BUTTERWORTH_F32;
 use biquad::{
@@ -13,7 +14,6 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
     Arc, Mutex,
 };
-use crate::platforms::FilterBox;
 
 pub struct CpalMgr {
     input_device: cpal::Device,
@@ -34,7 +34,6 @@ fn apply_filter(data: &mut Vec<f32>, filter: &Arc<Mutex<DirectForm1<f32>>>) {
 }
 
 impl CpalMgr {
-
     pub fn new() -> Result<CpalMgr, anyhow::Error> {
         let host = cpal::default_host();
         let (input_device, output_device) = CpalMgr::choose_input_output(&host).unwrap();
@@ -73,10 +72,7 @@ impl CpalMgr {
         Result::Ok((input_device, output_device))
     }
 
-    fn choose_device(
-        host: &cpal::Host,
-        target_input: bool,
-    ) -> Result<cpal::Device, anyhow::Error> {
+    fn choose_device(host: &cpal::Host, target_input: bool) -> Result<cpal::Device, anyhow::Error> {
         let mut input = String::new();
 
         let mut devices = if target_input {
@@ -145,8 +141,7 @@ impl FilterBox for CpalMgr {
                     let mut filtered_data = data.to_vec();
                     apply_filter(&mut filtered_data, &low_pass_cpy);
                     apply_filter(&mut filtered_data, &high_pass_cpy);
-                    let source =
-                        SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
+                    let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                     sink_clone.append(source);
                 },
                 err_fn,
@@ -154,14 +149,12 @@ impl FilterBox for CpalMgr {
             SampleFormat::I16 => self.input_device.build_input_stream(
                 &self.in_cfg.clone().into(),
                 move |data: &[i16], _: &cpal::InputCallbackInfo| {
-                    let mut filtered_data: Vec<f32> =
-                        data.iter().map(|x| (*x).to_f32()).collect();
+                    let mut filtered_data: Vec<f32> = data.iter().map(|x| (*x).to_f32()).collect();
                     apply_filter(&mut filtered_data, &low_pass_cpy);
                     apply_filter(&mut filtered_data, &high_pass_cpy);
                     let filtered_data: Vec<i16> =
                         filtered_data.iter().map(|x| (*x).to_i16()).collect();
-                    let source =
-                        SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
+                    let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                     sink_clone.append(source);
                 },
                 err_fn,
@@ -169,14 +162,12 @@ impl FilterBox for CpalMgr {
             SampleFormat::U16 => self.input_device.build_input_stream(
                 &self.in_cfg.clone().into(),
                 move |data: &[u16], _: &cpal::InputCallbackInfo| {
-                    let mut filtered_data: Vec<f32> =
-                        data.iter().map(|x| (*x).to_f32()).collect();
+                    let mut filtered_data: Vec<f32> = data.iter().map(|x| (*x).to_f32()).collect();
                     apply_filter(&mut filtered_data, &low_pass_cpy);
                     apply_filter(&mut filtered_data, &high_pass_cpy);
                     let filtered_data: Vec<u16> =
                         filtered_data.iter().map(|x| (*x).to_u16()).collect();
-                    let source =
-                        SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
+                    let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                     sink_clone.append(source);
                 },
                 err_fn,

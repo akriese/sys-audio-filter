@@ -4,11 +4,11 @@ use std::sync::Arc;
 use std::thread;
 
 mod platforms;
-pub use platforms::FilterBox;
 #[cfg(target_os = "linux")]
-pub use platforms::linux::{PaMgr as Manager};
+pub use platforms::linux::PaMgr as Manager;
 #[cfg(target_os = "windows")]
-pub use platforms::windows::{CpalMgr as Manager};
+pub use platforms::windows::CpalMgr as Manager;
+pub use platforms::FilterBox;
 
 fn get_input() -> String {
     let mut inp = String::new();
