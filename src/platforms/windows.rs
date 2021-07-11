@@ -1,5 +1,4 @@
-extern crate anyhow;
-extern crate cpal;
+use anyhow;
 use biquad::Q_BUTTERWORTH_F32;
 use biquad::{
     frequency::ToHertz,
