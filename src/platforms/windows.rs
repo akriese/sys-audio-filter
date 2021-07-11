@@ -20,7 +20,7 @@ pub struct CpalMgr {
     output_device: cpal::Device,
     in_cfg: cpal::SupportedStreamConfig,
     //out_cfg: cpal::SupportedStreamConfig,
-    sample_rate: u32,
+    pub sample_rate: f32,
     channels: u16,
     low_pass: Arc<Mutex<DirectForm1<f32>>>,
     high_pass: Arc<Mutex<DirectForm1<f32>>>,
@@ -44,7 +44,7 @@ impl CpalMgr {
         let out_cfg = output_device.default_output_config()?;
         println!("Default output config: {:?}", out_cfg);
 
-        let fs = in_cfg.sample_rate().0;
+        let fs = in_cfg.sample_rate().0 as f32;
         let coeffs =
             Coefficients::<f32>::from_params(LowPass, fs.hz(), 20000.hz(), Q_BUTTERWORTH_F32)
                 .unwrap();
@@ -128,7 +128,7 @@ impl FilterBox for CpalMgr {
         let sink = Arc::new(Sink::try_new(&stream_handle).expect("couldnt build sink"));
         let sink_clone = sink.clone();
         let channels_cpy = self.channels.clone();
-        let sample_rate_cpy = self.sample_rate.clone();
+        let sample_rate_cpy = self.sample_rate.clone() as u32;
         let low_pass_cpy = self.low_pass.clone();
         let high_pass_cpy = self.high_pass.clone();
 

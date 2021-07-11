@@ -23,6 +23,7 @@ pub struct PaMgr {
     source: Simple,
     sink: Simple,
     output_device: String,
+    pub sample_rate: f32,
     low_pass: Arc<Mutex<DirectForm1<f32>>>,
     high_pass: Arc<Mutex<DirectForm1<f32>>>,
     is_finished: Arc<AtomicBool>,
@@ -75,9 +76,9 @@ impl PaMgr {
         )
         .unwrap();
 
-        let cutoff_freq1 = 20000.0;
-        let cutoff_freq2 = 10.0;
         let sampling_freq = spec.rate as f32;
+        let cutoff_freq1 = sampling_freq / 2f32;
+        let cutoff_freq2 = 10.0;
 
         let coeffs1 = Coefficients::<f32>::from_params(
             LowPass,
@@ -102,6 +103,7 @@ impl PaMgr {
             source,
             sink,
             output_device,
+            sampling_freq,
             low_pass,
             high_pass,
             is_finished,

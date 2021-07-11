@@ -20,7 +20,8 @@ fn get_input() -> String {
 }
 
 fn manage_box(filter_box: Arc<Manager>) {
-    let min_freq = 10.0;
+    let min_freq = 10f32;
+    let max_freq = filter_box.sample_rate / 2f32;
 
     // use Ctrl+C handler to interrupt infinite sleeping loop
     let ctrl_c_clone = filter_box.clone();
@@ -30,7 +31,7 @@ fn manage_box(filter_box: Arc<Manager>) {
     })
     .expect("Error setting Ctrl+C handler");
 
-    let mut cutoff_low = 20000.0;
+    let mut cutoff_low = max_freq;
     let mut cutoff_high = min_freq;
 
     loop {
@@ -49,12 +50,12 @@ fn manage_box(filter_box: Arc<Manager>) {
             match command[0] as char {
                 'l' => {
                     cutoff_low = if val == -1.0 {
-                        20000.0
+                        max_freq
                     } else {
                         let old_val = cutoff_low;
                         match command[1] as char {
-                            '+' | '-' => (old_val + val).max(min_freq),
-                            _ => val.max(min_freq),
+                            '+' | '-' => (old_val + val).max(min_freq).min(max_freq),
+                            _ => val.max(min_freq).min(max_freq),
                         }
                     };
                     filter_box.set_filter(cutoff_low, false);
@@ -65,8 +66,8 @@ fn manage_box(filter_box: Arc<Manager>) {
                     } else {
                         let old_val = cutoff_high;
                         match command[1] as char {
-                            '+' | '-' => (old_val + val).max(min_freq),
-                            _ => val.max(min_freq),
+                            '+' | '-' => (old_val + val).max(min_freq).min(max_freq),
+                            _ => val.max(min_freq).min(max_freq),
                         }
                     };
                     filter_box.set_filter(cutoff_high, true);
