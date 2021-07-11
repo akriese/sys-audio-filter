@@ -2,8 +2,13 @@ extern crate anyhow;
 extern crate cpal;
 use std::sync::Arc;
 use std::thread;
-use std::process::Command;
-pub use sys_audio_filter::implementations::{PaMgr,CpalMgr, FilterBox};
+
+mod platforms;
+pub use platforms::FilterBox;
+#[cfg(target_os = "linux")]
+pub use platforms::linux::PaMgr;
+#[cfg(target_os = "windows")]
+pub use platforms::windows::CpalMgr;
 
 fn get_input() -> String {
     let mut inp = String::new();
