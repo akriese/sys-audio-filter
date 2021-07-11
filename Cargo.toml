@@ -13,6 +13,6 @@ biquad = "0.4.1"
 rodio = "0.13.1"
 cpal = "0.13.3"
 
-[target.'cfg(linux)'.dependencies]
+[target.'cfg(unix)'.dependencies]
 psimple = { version = "2.23.0", package = "libpulse-simple-binding" }
 pulse = { version = "2.23.0", package = "libpulse-binding" }
