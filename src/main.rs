@@ -2,6 +2,7 @@ extern crate anyhow;
 extern crate cpal;
 use std::sync::Arc;
 use std::thread;
+use ctrlc::set_handler as set_ctrlc_handler;
 
 mod platforms;
 #[cfg(target_os = "linux")]
@@ -23,7 +24,7 @@ fn manage_box(filter_box: Arc<Manager>) {
 
     // use Ctrl+C handler to interrupt infinite sleeping loop
     let ctrl_c_clone = filter_box.clone();
-    ctrlc::set_handler(move || {
+    set_ctrlc_handler(move || {
         ctrl_c_clone.finish();
         println!("Keyboard Interrupt received!");
     })
