@@ -45,9 +45,13 @@ impl CpalMgr {
         println!("Default output config: {:?}", out_cfg);
 
         let fs = in_cfg.sample_rate().0 as f32;
-        let coeffs =
-            Coefficients::<f32>::from_params(LowPass, fs.hz(), 20000.hz(), Q_BUTTERWORTH_F32)
-                .unwrap();
+        let coeffs = Coefficients::<f32>::from_params(
+            LowPass,
+            fs.hz(),
+            (fs / 2f32 - 100f32).hz(),
+            Q_BUTTERWORTH_F32,
+        )
+        .unwrap();
         let is_finished = Arc::new(AtomicBool::new(false));
         let channels = in_cfg.channels();
 
