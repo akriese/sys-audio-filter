@@ -6,9 +6,9 @@ use std::thread;
 mod platforms;
 pub use platforms::FilterBox;
 #[cfg(target_os = "linux")]
-pub use platforms::linux::PaMgr;
+pub use platforms::linux::{PaMgr as Manager};
 #[cfg(target_os = "windows")]
-pub use platforms::windows::CpalMgr;
+pub use platforms::windows::{CpalMgr as Manager};
 
 fn get_input() -> String {
     let mut inp = String::new();
@@ -18,7 +18,7 @@ fn get_input() -> String {
     inp.trim().to_string()
 }
 
-fn manage_box(filter_box: Arc<dyn FilterBox>) {
+fn manage_box(filter_box: Arc<Manager>) {
     let min_freq = 10.0;
 
     let mut cutoff_low = 20000.0;
@@ -84,10 +84,7 @@ fn manage_box(filter_box: Arc<dyn FilterBox>) {
 }
 
 fn main() {
-    #[cfg(target_os = "windows")]
-    let filter_box = Arc::new(CpalMgr::new().unwrap());
-    #[cfg(target_os = "linux")]
-    let filter_box = Arc::new(PaMgr::new().unwrap());
+    let filter_box = Arc::new(Manager::new().unwrap());
 
     let filter_box_cln = filter_box.clone();
 
