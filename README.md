@@ -33,6 +33,9 @@ system's sound to the program, you might want to install a virtual audio device 
 [Virtual Audio Cable](https://vb-audio.com/Cable/). After installing such a device, you need to set the standard
 audio output of Windows to that device, so that the sys-audio-filter can modify it.
 
+After starting the program, you are first queried to enter the index (provided by a list) of an input device and an output device.
+Afterwards, the audio will be forwarded from input to output, changed by the filter.
+
 
 ## Dependencies
 
