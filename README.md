@@ -39,8 +39,10 @@ audio output of Windows to that device, so that the sys-audio-filter can modify 
 ### Linux
 The usage of rodio and cpal requires the ALSA development files. You can install these with e.g.
 ```
-sudo apt-get install -y libasound2-dev
+sudo apt install libasound2-dev
 ```
+
+You also need to redirect the sound from applications you want the filter to work on onto the PulseAudio null-sink (which is automatically created by our program). You can do this using pactl or pavucontrol for example.
 
 ### Windows
 Optionally, install the virtual audio cable mentioned above.
@@ -55,11 +57,7 @@ Optionally, install the virtual audio cable mentioned above.
 - [x] Access system audio on multiple platforms
 - [ ] Manipulate stream's master volume
 - [x] Manipulate chosen frequencies
-- [ ] Convert between different sample rates (needed?)
 - [ ] Command Line interface
   - [ ] Enumerate all available devices and let the user choose input and output (not on linux)
   - [ ] Record into file (skipped feature)
-- [ ] GUI interface (not done)
-  - [ ] Live output graph of frequencies
-  - [ ] Drag filters in graph
 

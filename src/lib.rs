@@ -360,7 +360,7 @@ pub mod implementations {
 
         fn play(&self) -> Result<(), anyhow::Error> {
             while !self.is_finished() {
-                let mut buffer1: [u8; 4] = [0; 4]; // length has to be a multiple of 4
+                let mut buffer1: [u8; 32] = [0; 32]; // length has to be a multiple of 4
                 self.source.read(&mut buffer1).unwrap();
 
                 let mut input_vec = Vec::new(); 
@@ -377,7 +377,7 @@ pub mod implementations {
                     output_vec.push(self.low_pass.lock().unwrap().run(self.high_pass.lock().unwrap().run(elem)).to_i16());
                 }
                 
-                let mut buffer2: [u8; 4] = [0; 4];
+                let mut buffer2: [u8; 32] = [0; 32];
                 for i in 0..output_vec.len() {
                     let two_bytes: [u8; 2] = i16::to_ne_bytes(output_vec[i]);
                     buffer2[2*i] = two_bytes[0];
