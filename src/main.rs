@@ -2,7 +2,7 @@ extern crate anyhow;
 extern crate cpal;
 use std::sync::Arc;
 use std::thread;
-use ctrlc::set_handler as set_ctrlc_handler;
+//use ctrlc::set_handler as set_ctrlc_handler;
 
 mod platforms;
 #[cfg(target_os = "linux")]
@@ -24,12 +24,12 @@ fn manage_box(filter_box: Arc<Manager>) {
     let max_freq = filter_box.sample_rate / 2f32 - 100f32;
 
     // use Ctrl+C handler to interrupt infinite sleeping loop
-    let ctrl_c_clone = filter_box.clone();
-    set_ctrlc_handler(move || {
-        ctrl_c_clone.finish();
-        println!("Keyboard Interrupt received!");
-    })
-    .expect("Error setting Ctrl+C handler");
+    //let ctrl_c_clone = filter_box.clone();
+    //set_ctrlc_handler(move || {
+        //ctrl_c_clone.finish();
+        //println!("Keyboard Interrupt received!");
+    //})
+    //.expect("Error setting Ctrl+C handler");
 
     let mut cutoff_low = max_freq;
     let mut cutoff_high = min_freq;
