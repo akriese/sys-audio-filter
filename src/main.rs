@@ -21,7 +21,7 @@ fn get_input() -> String {
 
 fn manage_box(filter_box: Arc<Manager>) {
     let min_freq = 10f32;
-    let max_freq = filter_box.sample_rate / 2f32 - 100f32;
+    let max_freq = filter_box.sample_rate / 2f32 - 1000f32;
 
     // use Ctrl+C handler to interrupt infinite sleeping loop
     let ctrl_c_clone = filter_box.clone();

@@ -49,7 +49,7 @@ impl CpalMgr {
         let coeffs = Coefficients::<f32>::from_params(
             LowPass,
             fs.hz(),
-            (fs / 2f32 - 100f32).hz(),
+            (fs / 2f32 - 1000f32).hz(),
             Q_BUTTERWORTH_F32,
         )
         .unwrap();
