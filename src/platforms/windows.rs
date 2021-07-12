@@ -18,6 +18,7 @@ use std::sync::{
 pub struct CpalMgr {
     input_device: cpal::Device,
     output_device: cpal::Device,
+    output_device2: cpal::Device,
     in_cfg: cpal::SupportedStreamConfig,
     //out_cfg: cpal::SupportedStreamConfig,
     pub sample_rate: f32,
@@ -36,7 +37,7 @@ fn apply_filter(data: &mut Vec<f32>, filter: &Arc<Mutex<DirectForm1<f32>>>) {
 impl CpalMgr {
     pub fn new() -> Result<CpalMgr, anyhow::Error> {
         let host = cpal::default_host();
-        let (input_device, output_device) = CpalMgr::choose_input_output(&host).unwrap();
+        let (input_device, output_device, output_device2) = CpalMgr::choose_input_output(&host).unwrap();
 
         let in_cfg = input_device.default_input_config()?;
         println!("Default input config: {:?}", in_cfg);
@@ -58,6 +59,7 @@ impl CpalMgr {
         Result::Ok(CpalMgr {
             input_device,
             output_device,
+            output_device2,
             in_cfg,
             sample_rate: fs,
             channels,
@@ -69,11 +71,12 @@ impl CpalMgr {
 
     fn choose_input_output(
         host: &cpal::Host,
-    ) -> Result<(cpal::Device, cpal::Device), anyhow::Error> {
+    ) -> Result<(cpal::Device, cpal::Device, cpal::Device), anyhow::Error> {
         let input_device = CpalMgr::choose_device(host, true)?;
         let output_device = CpalMgr::choose_device(host, false)?;
+        let output_device2 = CpalMgr::choose_device(host, false)?;
 
-        Result::Ok((input_device, output_device))
+        Result::Ok((input_device, output_device, output_device2))
     }
 
     fn choose_device(host: &cpal::Host, target_input: bool) -> Result<cpal::Device, anyhow::Error> {
@@ -128,9 +131,13 @@ impl FilterBox for CpalMgr {
 
     fn play(&self) -> Result<(), anyhow::Error> {
         let (_stream, stream_handle) = OutputStream::try_from_device(&self.output_device)?;
+        let (_stream, stream_handle2) = OutputStream::try_from_device(&self.output_device2)?;
+
 
         let sink = Arc::new(Sink::try_new(&stream_handle).expect("couldnt build sink"));
+        let sink2 = Arc::new(Sink::try_new(&stream_handle2).expect("couldnt build sink"));
         let sink_clone = sink.clone();
+        let sink_clone2 = sink2.clone();
         let channels_cpy = self.channels.clone();
         let sample_rate_cpy = self.sample_rate.clone() as u32;
         let low_pass_cpy = self.low_pass.clone();
@@ -145,6 +152,9 @@ impl FilterBox for CpalMgr {
                     let mut filtered_data = data.to_vec();
                     apply_filter(&mut filtered_data, &low_pass_cpy);
                     apply_filter(&mut filtered_data, &high_pass_cpy);
+                    let fildat2 = filtered_data.clone();
+                    let source2 = SamplesBuffer::new(channels_cpy, sample_rate_cpy, fildat2);
+                    sink_clone2.append(source2);
                     let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                     sink_clone.append(source);
                 },
@@ -158,6 +168,9 @@ impl FilterBox for CpalMgr {
                     apply_filter(&mut filtered_data, &high_pass_cpy);
                     let filtered_data: Vec<i16> =
                         filtered_data.iter().map(|x| (*x).to_i16()).collect();
+                    let fildat2 = filtered_data.clone();
+                    let source2 = SamplesBuffer::new(channels_cpy, sample_rate_cpy, fildat2);
+                    sink_clone2.append(source2);
                     let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                     sink_clone.append(source);
                 },
@@ -171,6 +184,9 @@ impl FilterBox for CpalMgr {
                     apply_filter(&mut filtered_data, &high_pass_cpy);
                     let filtered_data: Vec<u16> =
                         filtered_data.iter().map(|x| (*x).to_u16()).collect();
+                    let fildat2 = filtered_data.clone();
+                    let source2 = SamplesBuffer::new(channels_cpy, sample_rate_cpy, fildat2);
+                    sink_clone2.append(source2);
                     let source = SamplesBuffer::new(channels_cpy, sample_rate_cpy, filtered_data);
                     sink_clone.append(source);
                 },
@@ -182,6 +198,7 @@ impl FilterBox for CpalMgr {
         // start playback
         in_stream.play()?;
         sink.sleep_until_end();
+        sink2.sleep_until_end();
         loop {
             if self.is_finished() {
                 break;
