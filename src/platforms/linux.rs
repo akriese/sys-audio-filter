@@ -68,7 +68,8 @@ impl PaMgr {
             None,                // Use the default server
             "FooApp",            // Our application’s name
             Direction::Playback, // We want a playback stream
-            Some(&output_device),
+            //Some(&output_device),
+            None,
             "Music", // Description of our stream
             &spec,   // Our sample format
             None,    // Use default channel map
@@ -76,20 +77,20 @@ impl PaMgr {
         )
         .unwrap();
 
-        let sampling_freq = spec.rate as f32;
-        let cutoff_freq1 = sampling_freq / 2f32;
+        let sample_rate = spec.rate as f32;
+        let cutoff_freq1 = sample_rate / 2f32;
         let cutoff_freq2 = 10.0;
 
         let coeffs1 = Coefficients::<f32>::from_params(
             LowPass,
-            sampling_freq.hz(),
+            sample_rate.hz(),
             cutoff_freq1.hz(),
             Q_BUTTERWORTH_F32,
         )
         .unwrap();
         let coeffs2 = Coefficients::<f32>::from_params(
             HighPass,
-            sampling_freq.hz(),
+            sample_rate.hz(),
             cutoff_freq2.hz(),
             Q_BUTTERWORTH_F32,
         )
@@ -103,7 +104,7 @@ impl PaMgr {
             source,
             sink,
             output_device,
-            sampling_freq,
+            sample_rate,
             low_pass,
             high_pass,
             is_finished,
@@ -118,6 +119,8 @@ impl Drop for PaMgr {
             .arg("module-null-sink")
             .output()
             .expect("Failed to execute command");
+
+        println!("Dropping");
     }
 }
 
