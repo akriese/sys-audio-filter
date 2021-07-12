@@ -16,7 +16,7 @@ use pulse::sample::{Format, Spec};
 use pulse::stream::Direction;
 use std::process::Command;
 
-use crate::platforms::FilterBox;
+use crate::platforms::{DEFAULT_MIN_FREQ, FilterBox, get_max_freq};
 
 pub struct PaMgr {
     spec: Spec,
@@ -78,8 +78,8 @@ impl PaMgr {
         .unwrap();
 
         let sample_rate = spec.rate as f32;
-        let cutoff_freq1 = sample_rate / 2f32;
-        let cutoff_freq2 = 10.0;
+        let cutoff_freq1 = get_max_freq(sample_rate);
+        let cutoff_freq2 = DEFAULT_MIN_FREQ;
 
         let coeffs1 = Coefficients::<f32>::from_params(
             LowPass,

@@ -1,4 +1,4 @@
-use crate::platforms::FilterBox;
+use crate::platforms::{FilterBox, get_max_freq};
 use anyhow;
 use biquad::Q_BUTTERWORTH_F32;
 use biquad::{
@@ -48,7 +48,7 @@ impl CpalMgr {
         let coeffs = Coefficients::<f32>::from_params(
             LowPass,
             fs.hz(),
-            (fs / 2f32 - 100f32).hz(),
+            get_max_freq(fs).hz(),
             Q_BUTTERWORTH_F32,
         )
         .unwrap();

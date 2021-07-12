@@ -9,7 +9,7 @@ mod platforms;
 pub use platforms::linux::PaMgr as Manager;
 #[cfg(target_os = "windows")]
 pub use platforms::windows::CpalMgr as Manager;
-pub use platforms::FilterBox;
+pub use platforms::{FilterBox, DEFAULT_MIN_FREQ, get_max_freq};
 
 fn get_input() -> String {
     let mut inp = String::new();
@@ -20,8 +20,8 @@ fn get_input() -> String {
 }
 
 fn manage_box(filter_box: Arc<Manager>) {
-    let min_freq = 10f32;
-    let max_freq = filter_box.sample_rate / 2f32 - 100f32;
+    let min_freq = DEFAULT_MIN_FREQ;
+    let max_freq = get_max_freq(filter_box.sample_rate);
 
     // use Ctrl+C handler to interrupt infinite sleeping loop
     //let ctrl_c_clone = filter_box.clone();
