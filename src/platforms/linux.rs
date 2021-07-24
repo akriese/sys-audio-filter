@@ -139,9 +139,12 @@ impl FilterBox for PaMgr {
             .expect("Failed to execute command");
     }
 
-    fn play(&self) -> Result<(), anyhow::Error> {
+    fn play(&self, spectrum_analyzer: &mut SpectrumAnalyzer) -> Result<(), anyhow::Error> {
+        const buf_size: usize = 1024;
+        const u8_buf_size: usize = buf_size * 2 * 2; // self.spec.channels;
+
         while !self.is_finished() {
-            let mut buffer1: [u8; 32] = [0; 32]; // length has to be a multiple of 4
+            let mut buffer1: [u8; u8_buf_size] = [0; u8_buf_size]; // length has to be a multiple of 4
             self.source.read(&mut buffer1).unwrap();
 
             let mut input_vec = Vec::new();
@@ -159,12 +162,15 @@ impl FilterBox for PaMgr {
                     self.low_pass
                         .lock()
                         .unwrap()
-                        .run(self.high_pass.lock().unwrap().run(elem))
-                        .to_i16(),
+                        .run(self.high_pass.lock().unwrap().run(elem)),
                 );
             }
 
-            let mut buffer2: [u8; 32] = [0; 32];
+            spectrum_analyzer.put_data(output_vec.clone());
+
+            let output_vec: Vec<i16> = output_vec.iter().map(|x| x.to_i16()).collect();
+
+            let mut buffer2: [u8; u8_buf_size] = [0; u8_buf_size];
             for i in 0..output_vec.len() {
                 let two_bytes: [u8; 2] = i16::to_ne_bytes(output_vec[i]);
                 buffer2[2 * i] = two_bytes[0];

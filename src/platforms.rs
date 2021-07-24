@@ -1,9 +1,9 @@
-#[cfg(target_os = "windows")]
-pub mod windows;
 #[cfg(target_os = "linux")]
 pub mod linux;
+#[cfg(target_os = "windows")]
+pub mod windows;
 
-use rustfft::{Fft, num_complex::Complex, FftPlanner};
+use rustfft::{num_complex::Complex, Fft, FftPlanner};
 use std::sync::Arc;
 
 pub const DEFAULT_MIN_FREQ: f32 = 10.0;
@@ -22,6 +22,8 @@ pub struct SpectrumAnalyzer {
 
 impl SpectrumAnalyzer {
     pub fn new(bins: usize, bs: usize) -> SpectrumAnalyzer {
+        assert!(bins <= bs);
+
         let mut planner = FftPlanner::<f32>::new();
         let fft = planner.plan_fft_forward(bs);
 
@@ -41,12 +43,10 @@ impl SpectrumAnalyzer {
 
         // if full, compute the new spectrum
         if fit < data.len() {
-            let mut fft_buffer: Vec<Complex<f32>> = self.buffer
+            let mut fft_buffer: Vec<Complex<f32>> = self
+                .buffer
                 .iter()
-                .map(|x| Complex {
-                    re: *x,
-                    im: 0.0f32,
-                })
+                .map(|x| Complex { re: *x, im: 0.0f32 })
                 .collect();
             self.fft.process(&mut fft_buffer[..]);
             self.freq_strengths = fft_buffer
@@ -65,7 +65,7 @@ impl SpectrumAnalyzer {
 }
 
 pub trait FilterBox {
-    fn play(&self) -> Result<(), anyhow::Error>;
+    fn play(&self, spectrum_analyzer: &mut SpectrumAnalyzer) -> Result<(), anyhow::Error>;
     fn set_filter(&self, freq: f32, target_high_pass: bool);
     fn is_finished(&self) -> bool;
     fn finish(&self);

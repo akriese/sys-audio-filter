@@ -9,7 +9,7 @@ mod platforms;
 pub use platforms::linux::PaMgr as Manager;
 #[cfg(target_os = "windows")]
 pub use platforms::windows::CpalMgr as Manager;
-pub use platforms::{FilterBox, DEFAULT_MIN_FREQ, get_max_freq};
+pub use platforms::{get_max_freq, FilterBox, SpectrumAnalyzer, DEFAULT_MIN_FREQ};
 
 fn get_input() -> String {
     let mut inp = String::new();
@@ -95,11 +95,14 @@ fn manage_box(filter_box: Arc<Manager>) {
 }
 
 fn main() {
+    let mut spectrum_analyzer = SpectrumAnalyzer::new(1000, 2048);
     let filter_box = Arc::new(Manager::new().unwrap());
 
     let filter_box_cln = filter_box.clone();
 
     thread::spawn(move || manage_box(filter_box_cln));
 
-    filter_box.play().expect("Error playing the sound!");
+    filter_box
+        .play(&mut spectrum_analyzer)
+        .expect("Error playing the sound!");
 }
