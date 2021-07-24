@@ -3,10 +3,65 @@ pub mod windows;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
+use rustfft::{Fft, num_complex::Complex, FftPlanner};
+use std::sync::Arc;
+
 pub const DEFAULT_MIN_FREQ: f32 = 10.0;
 
 pub fn get_max_freq(sample_rate: f32) -> f32 {
     sample_rate / 2f32 - 1000f32
+}
+
+pub struct SpectrumAnalyzer {
+    bins: usize,
+    freq_strengths: Vec<f32>,
+    buffer_size: usize,
+    buffer: Vec<f32>,
+    fft: Arc<dyn Fft<f32>>,
+}
+
+impl SpectrumAnalyzer {
+    pub fn new(bins: usize, bs: usize) -> SpectrumAnalyzer {
+        let mut planner = FftPlanner::<f32>::new();
+        let fft = planner.plan_fft_forward(bs);
+
+        SpectrumAnalyzer {
+            bins: bins,
+            freq_strengths: vec![0.0; bins],
+            buffer_size: bs,
+            buffer: vec![0.0; bs],
+            fft,
+        }
+    }
+
+    fn put_data(&mut self, data: Vec<f32>) {
+        // append as many datapoints to self.buffer as possible
+        let fit = (self.buffer_size - self.buffer.len()).min(data.len());
+        self.buffer.extend(data[..fit].iter());
+
+        // if full, compute the new spectrum
+        if fit < data.len() {
+            let mut fft_buffer: Vec<Complex<f32>> = self.buffer
+                .iter()
+                .map(|x| Complex {
+                    re: *x,
+                    im: 0.0f32,
+                })
+                .collect();
+            self.fft.process(&mut fft_buffer[..]);
+            self.freq_strengths = fft_buffer
+                .iter()
+                .map(|x| x.norm().powi(2) / self.buffer_size as f32)
+                .collect();
+
+            // reset the buffer and append the rest of the samples that werent included before
+            self.buffer = data[fit..].to_vec();
+        }
+    }
+
+    fn get_spectrum(&self) -> &Vec<f32> {
+        &self.freq_strengths
+    }
 }
 
 pub trait FilterBox {
