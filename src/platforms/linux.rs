@@ -16,7 +16,7 @@ use pulse::sample::{Format, Spec};
 use pulse::stream::Direction;
 use std::process::Command;
 
-use crate::platforms::{DEFAULT_MIN_FREQ, FilterBox, get_max_freq};
+use crate::platforms::{get_max_freq, FilterBox, SpectrumAnalyzer, DEFAULT_MIN_FREQ};
 
 pub struct PaMgr {
     spec: Spec,
