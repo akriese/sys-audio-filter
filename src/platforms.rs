@@ -70,4 +70,5 @@ pub trait FilterBox {
     fn is_finished(&self) -> bool;
     fn finish(&self);
     fn set_volume(&self, factor: u16);
+    fn sample_rate(&self) -> f32;
 }

@@ -122,6 +122,10 @@ impl CpalMgr {
 }
 
 impl FilterBox for CpalMgr {
+    fn sample_rate(&self) -> f32 {
+        self.sample_rate
+    }
+
     fn set_volume(&self, factor: u16) {
         println!("Yo {}", factor);
     }

@@ -125,6 +125,10 @@ impl Drop for PaMgr {
 }
 
 impl FilterBox for PaMgr {
+    fn sample_rate(&self) -> f32 {
+        self.spec.rate as f32
+    }
+
     fn set_volume(&self, factor: u16) {
         let mut owned_string: String = factor.to_string();
         let borrowed_string: &str = "%";
