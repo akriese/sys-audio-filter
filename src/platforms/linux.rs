@@ -143,7 +143,7 @@ impl FilterBox for PaMgr {
             .expect("Failed to execute command");
     }
 
-    fn play(&self, spectrum_analyzer: &mut SpectrumAnalyzer) -> Result<(), anyhow::Error> {
+    fn play(&self, spectrum_analyzer: Arc<Mutex<SpectrumAnalyzer>>) -> Result<(), anyhow::Error> {
         const buf_size: usize = 1024;
         const u8_buf_size: usize = buf_size * 2 * 2; // self.spec.channels;
 
@@ -170,7 +170,7 @@ impl FilterBox for PaMgr {
                 );
             }
 
-            spectrum_analyzer.put_data(output_vec.clone());
+            spectrum_analyzer.lock().unwrap().put_data(output_vec.clone());
 
             let output_vec: Vec<i16> = output_vec.iter().map(|x| x.to_i16()).collect();
 
