@@ -1,12 +1,15 @@
+use std::io;
+use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    mpsc,
+};
+use std::thread;
+use std::time::Duration;
 /// The following Event and EventHandler ARE TAKEN FROM tui/examples/utils!
 /// A small event handler that wrap termion input and tick events. Each event
 /// type is handled in its own thread and returned to a common `Receiver`
 use termion::event::Key;
-use std::sync::Arc;
-use std::thread;
-use std::io;
-use std::sync::{mpsc, atomic::{Ordering, AtomicBool}};
-use std::time::Duration;
 use termion::input::TermRead;
 
 pub enum Event<I> {
@@ -83,4 +86,3 @@ impl EventHandler {
         self.ignore_exit_key.store(false, Ordering::Relaxed);
     }
 }
-

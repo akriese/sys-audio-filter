@@ -14,14 +14,14 @@ use tui::{
 };
 //use ctrlc::set_handler as set_ctrlc_handler;
 
-mod platforms;
 mod events;
+mod platforms;
+pub use events::{Event, EventHandler};
 #[cfg(target_os = "linux")]
 pub use platforms::linux::PaMgr as Manager;
 #[cfg(target_os = "windows")]
 pub use platforms::windows::CpalMgr as Manager;
 pub use platforms::{get_max_freq, FilterBox, SpectrumAnalyzer, DEFAULT_MIN_FREQ};
-pub use events::{Event, EventHandler};
 
 #[allow(dead_code)]
 fn get_input() -> String {
@@ -109,7 +109,7 @@ fn manage_box(filter_box: Arc<Manager>) {
 }
 
 struct FilterApp {
-    data: Vec<(f64,f64)>,
+    data: Vec<(f64, f64)>,
     window: [f64; 2],
     bin_step: f32,
     spectrum_analyzer: Arc<Mutex<SpectrumAnalyzer>>,
@@ -126,7 +126,8 @@ impl FilterApp {
     }
 
     fn update(&mut self) {
-        self.data = self.spectrum_analyzer
+        self.data = self
+            .spectrum_analyzer
             .lock()
             .unwrap()
             .get_spectrum()
@@ -137,10 +138,13 @@ impl FilterApp {
     }
 }
 
-
 fn main() -> Result<(), anyhow::Error> {
     let filter_box = Arc::new(Manager::new().unwrap());
-    let spectrum_analyzer = Arc::new(Mutex::new(SpectrumAnalyzer::new(2048, filter_box.sample_rate(), 2048)));
+    let spectrum_analyzer = Arc::new(Mutex::new(SpectrumAnalyzer::new(
+        2048,
+        filter_box.sample_rate(),
+        2048,
+    )));
 
     let filter_box_cln = filter_box.clone();
     let sa_cln = spectrum_analyzer.clone();
@@ -166,31 +170,24 @@ fn main() -> Result<(), anyhow::Error> {
             let size = f.size();
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
-                .constraints(
-                    [
-                        Constraint::Ratio(1, 1),
-                    ]
-                    .as_ref(),
-                )
+                .constraints([Constraint::Ratio(1, 1)].as_ref())
                 .split(size);
             let x_labels = vec![
                 Span::styled(
                     format!("{} Hz", app.window[0]),
-                    Style::default().add_modifier(Modifier::BOLD)
+                    Style::default().add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(format!("{} Hz", (app.window[0] + app.window[1]) / 2.0)),
                 Span::styled(
                     format!("{} Hz", app.window[1]),
-                    Style::default().add_modifier(Modifier::BOLD)
+                    Style::default().add_modifier(Modifier::BOLD),
                 ),
             ];
-            let datasets = vec![
-                Dataset::default()
-                    .name("Spectrum")
-                    .marker(symbols::Marker::Dot)
-                    .style(Style::default().fg(Color::Yellow))
-                    .data(&app.data)
-            ];
+            let datasets = vec![Dataset::default()
+                .name("Spectrum")
+                .marker(symbols::Marker::Dot)
+                .style(Style::default().fg(Color::Yellow))
+                .data(&app.data)];
 
             let chart = Chart::new(datasets)
                 .block(
@@ -216,7 +213,7 @@ fn main() -> Result<(), anyhow::Error> {
                         .style(Style::default().fg(Color::Gray))
                         .labels(x_labels)
                         .bounds([0.0, 1.0]),
-               );
+                );
 
             f.render_widget(chart, chunks[0]);
         })?;
@@ -233,7 +230,6 @@ fn main() -> Result<(), anyhow::Error> {
             }
         };
     }
-
 
     // wait a little, otherwise filter_box.drop() will possibly not be called
     thread::sleep(Duration::from_millis(100));
