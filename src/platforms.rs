@@ -4,7 +4,7 @@ pub mod linux;
 pub mod windows;
 
 use rustfft::{num_complex::Complex, Fft, FftPlanner};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 pub const DEFAULT_MIN_FREQ: f32 = 10.0;
 
@@ -17,11 +17,12 @@ pub struct SpectrumAnalyzer {
     freq_strengths: Vec<f32>,
     buffer_size: usize,
     buffer: Vec<f32>,
+    frequency_step: f32,
     fft: Arc<dyn Fft<f32>>,
 }
 
 impl SpectrumAnalyzer {
-    pub fn new(bins: usize, bs: usize) -> SpectrumAnalyzer {
+    pub fn new(bins: usize, sample_rate: f32, bs: usize) -> SpectrumAnalyzer {
         assert!(bins <= bs);
 
         let mut planner = FftPlanner::<f32>::new();
@@ -32,11 +33,12 @@ impl SpectrumAnalyzer {
             freq_strengths: vec![0.0; bins],
             buffer_size: bs,
             buffer: vec![0.0; bs],
+            frequency_step: sample_rate / bins as f32,
             fft,
         }
     }
 
-    fn put_data(&mut self, data: Vec<f32>) {
+    pub fn put_data(&mut self, data: Vec<f32>) {
         // append as many datapoints to self.buffer as possible
         let fit = (self.buffer_size - self.buffer.len()).min(data.len());
         self.buffer.extend(data[..fit].iter());
@@ -59,13 +61,17 @@ impl SpectrumAnalyzer {
         }
     }
 
-    fn get_spectrum(&self) -> &Vec<f32> {
+    pub fn get_spectrum(&self) -> &Vec<f32> {
         &self.freq_strengths
+    }
+
+    pub fn bin_step(&self) -> f32 {
+        self.frequency_step
     }
 }
 
 pub trait FilterBox {
-    fn play(&self, spectrum_analyzer: &mut SpectrumAnalyzer) -> Result<(), anyhow::Error>;
+    fn play(&self, spectrum_analyzer: Arc<Mutex<SpectrumAnalyzer>>) -> Result<(), anyhow::Error>;
     fn set_filter(&self, freq: f32, target_high_pass: bool);
     fn is_finished(&self) -> bool;
     fn finish(&self);
